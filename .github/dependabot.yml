@@ -1,10 +1,18 @@
 version: 2
 updates:
+  # Group all updates per ecosystem into a single monthly PR (not one PR per dependency),
+  # so routine bumps arrive as one tidy, reviewable PR. Security fixes still come as needed.
   - package-ecosystem: npm
     directory: "/"
     schedule:
-      interval: weekly
+      interval: monthly
+    groups:
+      npm-dependencies:
+        patterns: ["*"]
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: weekly
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]

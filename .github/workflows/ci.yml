@@ -1,0 +1,35 @@
+name: CI
+
+# Public repo: Actions are free, so gate every push to main and every pull request (plus
+# on-demand). Runs typecheck/lint/format:check/test/build + the benchmark regression scorer.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege by default; jobs elevate only what they need (security hardening).
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24] # the live LTS lines (feedback-4 Section B)
+    steps:
+      # Third-party actions are pinned to commit SHAs (supply-chain hardening, D047).
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      - run: node tools/benchmark/score.mjs # detection/FP regression gate

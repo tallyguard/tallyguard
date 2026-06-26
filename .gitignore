@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Python tooling (incumbent baseline etc.) lives in a project-local venv
+.venv/
+
+# Build output
+dist/
+
+# Test + coverage artifacts
+coverage/
+test-results/
+playwright-report/
+.vitest/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment / secrets (never commit these; see docs/CODEBASE_MAP.md env vars)
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+.idea/
+*.swp

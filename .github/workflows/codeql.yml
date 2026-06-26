@@ -1,0 +1,28 @@
+name: CodeQL
+
+# Public repo: scan pushes to main and pull requests, plus a weekly schedule and on demand.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # weekly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    # CodeQL code scanning needs GitHub Advanced Security on private repos. Skip there so the
+    # workflow does not fail on every push; it activates automatically once the repo is public.
+    if: github.event.repository.visibility == 'public'
+    runs-on: ubuntu-latest
+    steps:
+      # Third-party actions pinned to commit SHAs (supply-chain hardening, D047).
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: github/codeql-action/init@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3.36.2
+        with:
+          languages: javascript-typescript
+      - uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3.36.2

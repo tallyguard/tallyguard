@@ -1,0 +1,545 @@
+{
+  "version": 1,
+  "framework": "next-app-router",
+  "detectors": ["rate-limit/unprotected-sensitive-endpoint", "money/missing-idempotency-key"],
+  "notes": "Labeled ground truth for both detectors. Each variant root is a self-contained mini-app. 'expect' lists the findings the analyzer should report for that variant (empty = clean). Matching is on (rule, file); line is omitted on purpose to stay robust. See README.md.",
+  "cases": [
+    {
+      "id": "money-missing-idempotency",
+      "detector": "money/missing-idempotency-key",
+      "summary": "A Stripe paymentIntents.create with no idempotency key (double-charges on retry/webhook redelivery); safe passes one in the second RequestOptions argument.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/money/missing-idempotency/vulnerable",
+          "expect": [{ "rule": "money/missing-idempotency-key", "file": "pay.ts" }]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/money/missing-idempotency/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "money-checkout-wrapper",
+      "detector": "money/missing-idempotency-key",
+      "summary": "The dominant real pattern: checkout.sessions.create via a Stripe instance imported from a local wrapper (project-level detection), with no idempotency key. The prisma.order.create in the same handler is not a Stripe resource and must not be flagged. Safe passes an idempotency key.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/money/checkout-wrapper/vulnerable",
+          "expect": [
+            { "rule": "money/missing-idempotency-key", "file": "app/api/checkout/route.ts" }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/money/checkout-wrapper/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "llm-openai-unprotected",
+      "sink": "ai",
+      "summary": "OpenAI call on a public POST route; vulnerable has no limiter, safe wires @upstash/ratelimit in the handler.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/llm-openai-unprotected/vulnerable",
+          "expect": [
+            { "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "app/api/chat/route.ts" }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/llm-openai-unprotected/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "llm-ai-sdk-unprotected",
+      "sink": "ai",
+      "summary": "Vercel AI SDK (streamText) call; vulnerable has no limiter, safe wires @upstash/ratelimit. The dominant real-world LLM pattern, found by scanning the corpus.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/llm-ai-sdk-unprotected/vulnerable",
+          "expect": [
+            {
+              "rule": "rate-limit/unprotected-sensitive-endpoint",
+              "file": "app/api/chat/route.ts"
+            }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/llm-ai-sdk-unprotected/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "route-wrapper-limiter",
+      "sink": "ai",
+      "summary": "A route exported as a HOF wrapper (export const POST = withX(handler)), the dub/withWorkspace pattern. Safe: the wrapper's own body enforces a limiter, so the route is covered (must be clean). Vulnerable: the wrapper only authenticates, no limiter reachable (must flag). Guards a flagship-app false positive found scanning dub.",
+      "variants": [
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/route-wrapper-limiter/safe",
+          "expect": []
+        },
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/route-wrapper-limiter/vulnerable",
+          "expect": [
+            { "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "app/api/chat/route.ts" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "llm-raw-fetch",
+      "sink": "ai",
+      "summary": "An LLM API called by raw fetch (no SDK), the common no-SDK pattern in AI-built apps (found on a real repo). Vulnerable has no limiter; safe rate-limits first; proxy-clean fetches a dynamic env-var URL to a non-LLM backend and must stay clean (the LLM cost is downstream). Validates AI_API_HOSTS detection and its precision boundary.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/llm-raw-fetch/vulnerable",
+          "expect": [
+            { "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "app/api/chat/route.ts" }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/llm-raw-fetch/safe",
+          "expect": []
+        },
+        {
+          "kind": "clean",
+          "root": "cases/rate-limit/llm-raw-fetch/proxy-clean",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "llm-groq-unprotected",
+      "sink": "ai",
+      "summary": "A newly catalogued provider (groq-sdk, v2): a Groq LLM call on a public POST route. Vulnerable has no limiter; safe enforces @upstash/ratelimit. Proves a v2 catalogue addition flows end-to-end through the detector.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/llm-groq-unprotected/vulnerable",
+          "expect": [
+            { "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "app/api/chat/route.ts" }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/llm-groq-unprotected/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "auth-login-unprotected",
+      "sink": "auth",
+      "summary": "Login with bcrypt.compare; vulnerable has no limiter (auth path raises severity), safe throttles per IP.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/auth-login-unprotected/vulnerable",
+          "expect": [
+            {
+              "rule": "rate-limit/unprotected-sensitive-endpoint",
+              "file": "app/api/auth/login/route.ts"
+            }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/auth-login-unprotected/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "limiter-present-not-wired",
+      "sink": "ai",
+      "summary": "The DryRun case: a limiter is configured in the file but never invoked on the route (vulnerable), versus actually invoked (safe). This is the cross-file/wiring case grep cannot resolve.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/limiter-present-not-wired/vulnerable",
+          "expect": [
+            { "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "app/api/chat/route.ts" }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/limiter-present-not-wired/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "middleware-matcher-excludes-route",
+      "sink": "ai",
+      "summary": "Edge protection via middleware.ts; vulnerable matcher excludes the route, safe matcher includes it. Tests reachability through the middleware matcher.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/middleware-matcher-excludes-route/vulnerable",
+          "expect": [
+            { "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "app/api/chat/route.ts" }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/middleware-matcher-excludes-route/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "cross-file-sink-in-helper",
+      "sink": "ai",
+      "summary": "The LLM sink lives in a helper (lib/ai.ts), not inline; requires following the handler's call into the helper. Vulnerable has no limiter; safe wires one in the handler.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/cross-file-sink-in-helper/vulnerable",
+          "expect": [
+            {
+              "rule": "rate-limit/unprotected-sensitive-endpoint",
+              "file": "app/api/chat/route.ts"
+            }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/cross-file-sink-in-helper/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "cross-file-sink-in-helper-alias",
+      "sink": "ai",
+      "summary": "Same as above but the helper is imported via the `@/` path alias; requires reading the project's tsconfig paths to resolve.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/cross-file-sink-in-helper-alias/vulnerable",
+          "expect": [
+            {
+              "rule": "rate-limit/unprotected-sensitive-endpoint",
+              "file": "app/api/chat/route.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cross-file-limiter-in-helper",
+      "sink": "ai",
+      "summary": "Limiter enforced inside a helper reached from the handler (safe, clean) vs a helper that only logs (vulnerable, flag). Tests following limiters across files.",
+      "variants": [
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/cross-file-limiter-in-helper/safe",
+          "expect": []
+        },
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/cross-file-limiter-in-helper/vulnerable",
+          "expect": [
+            {
+              "rule": "rate-limit/unprotected-sensitive-endpoint",
+              "file": "app/api/chat/route.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cross-file-langchain-in-helper",
+      "sink": "ai",
+      "summary": "LangChain chat model constructed/invoked in a cross-file helper (mirrors a real corpus repo). Vulnerable has no limiter; safe wires one in the handler.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/cross-file-langchain-in-helper/vulnerable",
+          "expect": [
+            {
+              "rule": "rate-limit/unprotected-sensitive-endpoint",
+              "file": "app/api/summarize/route.ts"
+            }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/cross-file-langchain-in-helper/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "middleware-negative-lookahead-excludes-api",
+      "sink": "ai",
+      "summary": "The common Next.js default matcher (negative lookahead) excludes /api, so the limiter does not cover the LLM route. Must flag (regression guard against assuming coverage).",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/middleware-negative-lookahead-excludes-api/vulnerable",
+          "expect": [
+            {
+              "rule": "rate-limit/unprotected-sensitive-endpoint",
+              "file": "app/api/chat/route.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "middleware-group-covers-api",
+      "sink": "ai",
+      "summary": "An alternation-group matcher that includes /api covers the route. Must be clean (the false positive that prefix-only matching used to raise).",
+      "variants": [
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/middleware-group-covers-api/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "express-unprotected",
+      "framework": "express",
+      "sink": "ai",
+      "summary": "Express LLM route; vulnerable has no limiter, safe applies a route-level express-rate-limit middleware.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/express-unprotected/vulnerable",
+          "expect": [{ "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "server.ts" }]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/express-unprotected/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "express-global-use-limiter",
+      "framework": "express",
+      "sink": "ai",
+      "summary": "Express LLM route protected by a global app.use(rateLimit(...)). Must be clean.",
+      "variants": [
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/express-global-use-limiter/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "express-limiter-not-wired",
+      "framework": "express",
+      "sink": "ai",
+      "summary": "Express limiter configured but never applied to the app or route. Must flag.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/express-limiter-not-wired/vulnerable",
+          "expect": [{ "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "server.ts" }]
+        }
+      ]
+    },
+    {
+      "id": "express-commonjs-unprotected",
+      "framework": "express",
+      "sink": "ai",
+      "summary": "CommonJS Express (require) LLM route; vulnerable has no limiter, safe applies a route-level express-rate-limit middleware.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/express-commonjs-unprotected/vulnerable",
+          "expect": [{ "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "server.js" }]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/express-commonjs-unprotected/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "express-controller-cross-file",
+      "framework": "express",
+      "sink": "auth",
+      "summary": "Express route whose handler is a controller method in another file (the bcrypt sink lives there). Tests member-access handler resolution across files.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/express-controller-cross-file/vulnerable",
+          "expect": [{ "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "server.ts" }]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/express-controller-cross-file/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "nextauth-credentials",
+      "framework": "next-app-router",
+      "sink": "auth",
+      "summary": "NextAuth/Auth.js Credentials provider: the authorize callback verifies a password (bcrypt), so the credential sign-in is the login endpoint. Vulnerable has no rate limiting (brute-force / CWE-307, must flag at the authorize). Safe enforces a custom per-identifier login limiter first (must be clean). Pattern confirmed on a real production app.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/nextauth-credentials/vulnerable",
+          "expect": [{ "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "auth.ts" }]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/nextauth-credentials/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "server-action-llm",
+      "framework": "next-app-router",
+      "sink": "ai",
+      "summary": "Next.js server action (`\"use server\"`) calling an LLM. Vulnerable has no rate limiting (must flag the action; a non-sensitive cookie/theme action in the same file must stay clean). Safe guards it with a custom project rate-limit helper (checkUserRateLimit), which must be recognized so a correctly-limited action is not a false positive (the real-world pattern from a scanned app).",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/server-action-llm/vulnerable",
+          "expect": [
+            { "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "app/actions.ts" }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/server-action-llm/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "express-router-named-import",
+      "framework": "express",
+      "sink": "ai",
+      "summary": "Real-repo pattern (found on a private repo): a router created via a named import (`import { Router } from 'express'`, not express.Router()) in another file, with an AI route, mounted in app.ts. Safe applies an app-wide limiter that covers the mounted router (must be clean; guards a classification bug that flagged covered routers). Vulnerable has no limiter anywhere (must flag the named-import router route).",
+      "variants": [
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/express-router-named-import/safe",
+          "expect": []
+        },
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/express-router-named-import/vulnerable",
+          "expect": [
+            { "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "routes/workout.ts" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "express-limiter-wrapper",
+      "framework": "express",
+      "sink": "ai",
+      "summary": "Precision case from a real repo: a route applies a limiter imported from a local wrapper module that re-exports an express-rate-limit instance (safe, must be clean). The vulnerable counterpart applies a local middleware that is NOT a limiter (a logger), so the route must still be flagged (guards against blanket-suppressing on any local import).",
+      "variants": [
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/express-limiter-wrapper/safe",
+          "expect": []
+        },
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/express-limiter-wrapper/vulnerable",
+          "expect": [{ "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "server.js" }]
+        }
+      ]
+    },
+    {
+      "id": "express-mounted-path-limiter",
+      "framework": "express",
+      "sink": "ai",
+      "summary": "Cross-file mount resolution (D041), the scouthook pattern: a path-scoped app limiter `app.use('/api', rateLimit())` covers a router mounted under /api (safe, must be clean), but a sensitive router mounted at /auth is not covered (vulnerable, must flag). Guards the ~25-false-positive class found on a real repo.",
+      "variants": [
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/express-mounted-path-limiter/safe",
+          "expect": []
+        },
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/express-mounted-path-limiter/vulnerable",
+          "expect": [
+            { "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "routes/auth.js" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "express-cross-file-router-cjs",
+      "framework": "express",
+      "sink": "auth",
+      "summary": "Real-world CommonJS Express layout: an app mounts a router (require) defined in another file, whose handler is an exports.x controller method in a third file (bcrypt). Vulnerable has no limiter (flag in the routes file); safe applies an app-wide limiter that covers every mounted router (must be clean, the cross-file precision case).",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/express-cross-file-router-cjs/vulnerable",
+          "expect": [
+            { "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "routes/auth.js" }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/express-cross-file-router-cjs/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "non-sensitive-clean",
+      "sink": "none",
+      "summary": "False-positive control: a non-sensitive GET with no catalogued sink and no limiter. Must NOT be flagged.",
+      "variants": [
+        {
+          "kind": "clean",
+          "root": "cases/rate-limit/non-sensitive-clean/clean",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "unknown-custom-guard",
+      "sink": "ai",
+      "summary": "Route wrapped in a custom guard the catalogue does not recognize. Per D024 (unknownGuard defaults to flag) this is flagged with an informative message naming the guard.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/unknown-custom-guard/vulnerable",
+          "expect": [
+            {
+              "rule": "rate-limit/unprotected-sensitive-endpoint",
+              "file": "app/api/chat/route.ts",
+              "note": "unknown-guard subcase (D024); message should name `withThrottle`"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

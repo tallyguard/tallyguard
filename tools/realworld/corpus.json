@@ -1,0 +1,378 @@
+{
+  "note": "Real AI-built repositories, pinned at a commit SHA, with hand-verified expected findings. Each expected finding was confirmed a true positive (the route reaches a catalogued sink and the repo has no rate limiting reachable on it). Because the SHA is pinned, the analyzer's output is deterministic, so run.mjs asserts an exact match and fails on any regression (a missed true positive) or new finding (a possible false positive to review).",
+  "repos": [
+    {
+      "repo": "grillsdev/grills",
+      "sha": "dce96be6b12ede3a9ff5b8ea555aa16d42f859b9",
+      "framework": "next-app-router",
+      "expect": [
+        {
+          "file": "src/app/api/completion/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "src/app/api/theme/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "src/app/api/completion/models/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    },
+    {
+      "repo": "murabcd/vibestack",
+      "sha": "e0ca7da3b56c8b49b8d24f2fd0d64d29b74ba8de",
+      "framework": "next-app-router",
+      "expect": [
+        {
+          "file": "app/api/chat/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/errors/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/transcribe/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/actions.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint",
+          "note": "Next.js server action generateTitleFromUserMessage calls the Vercel AI SDK (generateText) with no rate limiting. A real unprotected AI server action, found once server actions were modeled."
+        }
+      ]
+    },
+    {
+      "repo": "emarco177/dandi",
+      "sha": "5b090b54c8220da0a83f45687df06224e1468112",
+      "framework": "next-app-router",
+      "expect": [
+        {
+          "file": "src/app/api/github-summarizer/route.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    },
+    {
+      "repo": "Sanjanachauhan764/mern-auth-app",
+      "sha": "4a35ca4e9e0e1e76e268e3a07ee2034f21a6287c",
+      "framework": "express-commonjs",
+      "note": "Single-file CommonJS Express app (require). /register and /login reach bcrypt.hash/compare with no rate limiting (no limiter dependency, only express.json and cors are applied). Validates CommonJS Express on real code.",
+      "expect": [
+        {
+          "file": "back-end/index.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "back-end/index.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    },
+    {
+      "repo": "raaachanaaa/mern-auth-project",
+      "sha": "e737a40a274d139aaacf83944727c4e18d680df0",
+      "framework": "express",
+      "note": "ESM Express with the routes split across files: authRoutes.js defines a router (mounted at /api/auth in server.js) whose handlers are named-import controller functions in authController.js. register/login/reset-password reach bcrypt with no rate limiting (no limiter dependency). The unflagged routes are correctly clean (no sink, or only an email sink reached through a local transporter wrapper we do not resolve). Validates cross-file router + controller resolution on real code.",
+      "expect": [
+        {
+          "file": "server/routes/authRoutes.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "server/routes/authRoutes.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "server/routes/authRoutes.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    },
+    {
+      "repo": "teshankalhara/ai-chat-bot-nextjs",
+      "sha": "5e489dff3db427dc54365400e528898e47fc61e0",
+      "framework": "next-app-router",
+      "note": "No AI SDK: the chat route calls the HuggingFace inference API by raw fetch (a literal host URL) with no rate limiting. Validates AI_API_HOSTS (raw-fetch-to-LLM) detection on real code.",
+      "expect": [
+        {
+          "file": "app/api/chat/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    },
+    {
+      "repo": "ahamril2265/nextjs-ai-chatbot",
+      "sha": "154e19305c1a9ea497da09eaa23ee45c855ead21",
+      "framework": "next-app-router",
+      "note": "Vercel-AI-SDK chatbot. The server action generateTitleFromUserMessage (generateText) and the chat route (streamText) are unprotected AI sinks; the resumable-stream GET route is correctly clean (it uses ai utilities createUIMessageStream/JsonToSseTransformStream, not a cost call), which is the false positive the AI_SDK_COST_FUNCTIONS narrowing fixed.",
+      "expect": [
+        {
+          "file": "app/(chat)/actions.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/(chat)/api/chat/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    },
+    {
+      "repo": "gustavopiucco/next-auth-example",
+      "sha": "abd9d01d64d5ff4a555a601fdeae721b156525a9",
+      "framework": "next-app-router",
+      "note": "NextAuth v4 Credentials: the authorize callback verifies the password (bcrypt via verifyCredentialsUser) and the register route hashes a password, both with no rate limiting. Validates NextAuth credentials + register-route detection on real code.",
+      "expect": [
+        {
+          "file": "lib/auth-options.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/auth/register/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    },
+    {
+      "repo": "hrishikesh999/scouthook",
+      "sha": "6d5fb03319531d493ed7d82b4e7aa6c0c7114c6f",
+      "framework": "express-commonjs",
+      "note": "A 30+-route CommonJS Express app that DOES rate-limit: app.use('/api', rateLimit()) covers every router mounted under /api (profile/generate/linkedin/vault/... all correctly clean), and login/resend/change-password carry their own route-level limiters (clean). The unprotected ones remain: routers mounted at /auth (signup/verify-email/forgot-password/reset-password) and /admin (support/feedback reply, which send email behind only an admin-password gate). Validates cross-file mount resolution with a path-scoped limiter (D041): without it this produced ~25 false positives.",
+      "expect": [
+        {
+          "file": "routes/admin.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "routes/admin.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "routes/email-auth.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "routes/email-auth.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "routes/email-auth.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "routes/email-auth.js",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    },
+    {
+      "repo": "langchain-ai/langchain-nextjs-template",
+      "sha": "1acb3b7f555d8018d10fb0e4022a2d2a00a93c1b",
+      "framework": "next-app-router",
+      "note": "The official LangChain Next.js template (~2.5k stars): no rate limiting on any AI route or action. Server actions (ai_sdk/agent, ai_sdk/tools) and routes (chat, agents, retrieval, retrieval_agents, structured_output, ingest embeddings) all reach an LLM/embeddings sink. Validates LangChain + server-action + embeddings detection on a high-profile real codebase.",
+      "expect": [
+        {
+          "file": "app/ai_sdk/agent/action.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/ai_sdk/tools/action.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/agents/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/retrieval/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/retrieval_agents/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/structured_output/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/retrieval/ingest/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    },
+    {
+      "repo": "vercel/ai-chatbot",
+      "sha": "2becdb4a56e7683ae08aef927cec1c6c52dfad5e",
+      "framework": "next-app-router",
+      "note": "The official Vercel AI chatbot template. The chat route is correctly clean (it calls checkIpRateLimit, recognized by name); the title-generation server action (generateText) is unprotected. Validates custom-limiter recognition AND a real server-action true positive on a flagship template.",
+      "expect": [
+        {
+          "file": "app/(chat)/actions.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    },
+    {
+      "repo": "mckaywrigley/chatbot-ui",
+      "sha": "81328b61d2a4ab597a7a057be70e785cf756d9f8",
+      "framework": "next-app-router",
+      "note": "A popular multi-provider chat UI with no rate limiting on any provider route. Each provider route (OpenAI/Anthropic/Azure/Google/Groq/Mistral/OpenRouter/Perplexity/custom), the assistants and command routes, and the retrieval/embeddings routes reach an LLM sink unprotected (checkApiKey validates a key, it is not a limiter).",
+      "expect": [
+        {
+          "file": "app/api/command/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/assistants/openai/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/anthropic/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/azure/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/custom/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/google/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/groq/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/mistral/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/openai/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/openrouter/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/perplexity/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/chat/tools/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/retrieval/process/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/retrieval/retrieve/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/retrieval/process/docx/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    },
+    {
+      "repo": "steven-tey/novel",
+      "sha": "fa95098e66476c466faebb8211baa5869c101a9c",
+      "framework": "next-app-router",
+      "note": "CLEAN CONTROL: a popular AI editor whose /api/generate route rate-limits the LLM call inline with @upstash/ratelimit (new Ratelimit().limit()). Must stay clean, guarding against a regression that would false-positive a correctly rate-limited real app.",
+      "expect": []
+    },
+    {
+      "repo": "mzashah/nextjs-saas-boilerplate",
+      "sha": "d8fa8d8450e9ed692375f13f4a10d136b07dcc69",
+      "framework": "next-app-router",
+      "note": "Mixed-detector real repo: a NextAuth Credentials login with no rate limiting (rate-limit), and a Stripe checkout.sessions.create with no idempotency key (money). Validates both detectors on one real codebase.",
+      "expect": [
+        {
+          "file": "lib/auth.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/stripe/create-checkout/route.ts",
+          "rule": "money/missing-idempotency-key"
+        }
+      ]
+    },
+    {
+      "repo": "Abdelrahman-Aboalkhair/Full-Stack-E-Commerce-Platform",
+      "sha": "e0611a5d924e410f0bba40422eeb4a4e22c89d29",
+      "framework": "express",
+      "note": "E-commerce backend (~36 stars). checkout.service.ts creates a Stripe checkout session with no idempotency key. Validates Detector 2a on a real codebase where the Stripe instance is imported from a local config module.",
+      "expect": [
+        {
+          "file": "src/server/src/modules/checkout/checkout.service.ts",
+          "rule": "money/missing-idempotency-key"
+        }
+      ]
+    },
+    {
+      "repo": "dignitasjota/storageos",
+      "sha": "af061f842dd8274188795c0ab1460d671b2f32b4",
+      "framework": "express",
+      "note": "NestJS-style billing service: checkout.sessions.create and this.stripe.paymentIntents.create (x2) with no idempotency key. Validates Detector 2a including the this.stripe receiver pattern.",
+      "expect": [
+        {
+          "file": "apps/api/src/modules/billing-saas/billing-saas.service.ts",
+          "rule": "money/missing-idempotency-key"
+        },
+        {
+          "file": "apps/api/src/modules/payments/stripe.gateway.ts",
+          "rule": "money/missing-idempotency-key"
+        },
+        {
+          "file": "apps/api/src/modules/payments/stripe.gateway.ts",
+          "rule": "money/missing-idempotency-key"
+        }
+      ]
+    },
+    {
+      "repo": "Shaisolaris/nextjs-stripe-saas",
+      "sha": "b88af066f7c2dd43a2a9c23f69715aea3920329b",
+      "framework": "next-app-router",
+      "note": "Idempotency-aware Stripe SaaS that still missed one spot: it threads idempotency keys through its usage-record logic, yet checkout.sessions.create (subscriptions.ts) passes no idempotency key to Stripe (money TP). Plus a NextAuth login and a register route with no rate limiting. Validates that Rule 2a catches a real missed key without being confused by app-level idempotency, and that billingPortal/customers .create are not flagged.",
+      "expect": [
+        {
+          "file": "src/lib/auth.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "src/app/api/auth/register/route.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "src/lib/stripe/subscriptions.ts",
+          "rule": "money/missing-idempotency-key"
+        }
+      ]
+    },
+    {
+      "repo": "habibjutt/nextjs_boilerplate",
+      "sha": "fea3745a2b1808e298947c0a0d6b2e6f8b44c761",
+      "framework": "next-app-router",
+      "note": "A contact server action sends email via nodemailer with no rate limiting (rate-limit TP). Its only Stripe create-call is customers.create, which is not money-moving and is correctly NOT flagged (Rule 2a scoping precision).",
+      "expect": [
+        {
+          "file": "actions/contact/submit-contact.ts",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
+    }
+  ]
+}

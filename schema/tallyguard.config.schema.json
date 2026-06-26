@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tallyguard.dev/schema/tallyguard.config.schema.json",
+  "title": "Tallyguard configuration",
+  "description": "Repo-level configuration for the Tallyguard static analyzer. See docs/specs/SUPPRESSION-AND-FALSE-POSITIVES.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Pointer to this schema for editor completion."
+    },
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Config schema version. Bumped only on a breaking change to this shape."
+    },
+    "include": {
+      "type": "array",
+      "description": "Globs of files to scan. Defaults to the analyzer's built-in set when omitted.",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "exclude": {
+      "type": "array",
+      "description": "Globs of files to skip. Applied after include.",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "rules": {
+      "type": "object",
+      "description": "Per-rule level. Unlisted rules use their default severity.",
+      "additionalProperties": false,
+      "properties": {
+        "rate-limit/unprotected-sensitive-endpoint": { "$ref": "#/$defs/ruleLevel" },
+        "money/missing-idempotency-key": { "$ref": "#/$defs/ruleLevel" },
+        "money/check-then-act-race": { "$ref": "#/$defs/ruleLevel" },
+        "tallyguard/suppression-without-reason": { "$ref": "#/$defs/ruleLevel" }
+      }
+    },
+    "rateLimit": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Settings specific to Detector 1 (rate limiting).",
+      "properties": {
+        "handledAtEdge": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, globally suppress Detector 1: the team declares a gateway/WAF/platform limiter handles rate limiting."
+        },
+        "edgeHandledPaths": {
+          "type": "array",
+          "description": "Route globs where rate limiting is handled at the edge. Scopes the declaration instead of suppressing globally.",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "default": []
+        },
+        "unknownGuard": {
+          "enum": ["flag", "suppress"],
+          "default": "flag",
+          "description": "Behavior when a route is guarded by a middleware the catalogue does not recognize. 'flag' (default) flags with an informative message naming the guard so the developer can verify, catalogue, or suppress it; 'suppress' assumes it may be protective and does not flag (still recorded in the suppressed output)."
+        }
+      }
+    },
+    "graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Call-graph analysis settings.",
+      "properties": {
+        "maxDepth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 2,
+          "description": "How many levels of function calls to follow from a handler into helper functions."
+        }
+      }
+    },
+    "suppressions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Governs inline suppression comments.",
+      "properties": {
+        "requireReason": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), a suppression without a ' -- <reason>' is reported as tallyguard/suppression-without-reason. Set false to relax."
+        },
+        "allowBlanket": {
+          "type": "boolean",
+          "default": true,
+          "description": "When false, a suppression comment that omits the rule ID (suppressing all rules) is rejected."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "ruleLevel": {
+      "enum": ["error", "warn", "off"],
+      "description": "error trips a findings exit code; warn reports without tripping it; off disables the rule."
+    }
+  }
+}

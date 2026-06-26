@@ -1,0 +1,52 @@
+{
+  "name": "tallyguard",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Deterministic static analyzer that flags missing rate limits and unsafe money-handling in web app source code before it ships.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "npm@10.9.4",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "tallyguard": "dist/cli/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "benchmark": "npm run build && node tools/benchmark/score.mjs",
+    "realworld": "npm run build && node tools/realworld/run.mjs",
+    "app:dev": "probot run ./dist/app/probot-app.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test --pass-with-no-tests",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^26.0.0",
+    "@vitest/coverage-v8": "^4.1.9",
+    "eslint": "^10.5.0",
+    "prettier": "^3.8.4",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.0",
+    "vitest": "^4.1.9"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "probot": "^14.3.2",
+    "ts-morph": "^28.0.0"
+  }
+}

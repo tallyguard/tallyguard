@@ -7,8 +7,8 @@
 
 import { parseArgs } from "node:util";
 import { resolve } from "node:path";
-import { existsSync, statSync } from "node:fs";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { existsSync, statSync, realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { loadConfig } from "../config.js";
 import { scanProject } from "../scan.js";
 import { formatJson } from "../report/json.js";
@@ -129,14 +129,22 @@ export function runCli(argv: string[], ctx: CliContext): CliOutcome {
   }
 }
 
-// Bin entry: run only when invoked directly, so tests can import runCli side-effect-free.
-const invokedDirectly =
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(process.argv[1]).href &&
-  // also matches when run via the bundled file name
-  fileURLToPath(import.meta.url).length > 0;
+// Bin entry: run only when invoked as the executable, so tests can import runCli
+// side-effect-free. Compare realpaths (not raw URLs): npm's `npx` and `npm i -g` run the bin
+// through a SYMLINK, so argv[1] is the symlink path while import.meta.url is the resolved real
+// file. A raw-URL compare returned false there, making the CLI silently no-op via npx (0.1.0);
+// resolving both sides to realpaths fixes it.
+function isMainModule(): boolean {
+  const entry = process.argv[1];
+  if (entry === undefined) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(entry);
+  } catch {
+    return false;
+  }
+}
 
-if (invokedDirectly) {
+if (isMainModule()) {
   const outcome = runCli(process.argv.slice(2), {
     cwd: process.cwd(),
     env: process.env,

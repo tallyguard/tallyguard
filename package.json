@@ -1,16 +1,39 @@
 {
   "name": "tallyguard",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Deterministic static analyzer that flags missing rate limits and unsafe money-handling in web app source code before it ships.",
+  "keywords": [
+    "static-analysis",
+    "sast",
+    "security",
+    "rate-limiting",
+    "denial-of-wallet",
+    "nextjs",
+    "express",
+    "stripe",
+    "idempotency",
+    "sarif",
+    "cli",
+    "ai",
+    "typescript"
+  ],
   "type": "module",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tallyguard/tallyguard.git"
+  },
+  "homepage": "https://github.com/tallyguard/tallyguard#readme",
+  "bugs": "https://github.com/tallyguard/tallyguard/issues",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
     "node": ">=22"
   },
   "packageManager": "npm@10.9.4",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "bin": {
     "tallyguard": "dist/cli/index.js"
   },
@@ -19,6 +42,7 @@
   ],
   "scripts": {
     "build": "tsup",
+    "prepublishOnly": "npm run build",
     "benchmark": "npm run build && node tools/benchmark/score.mjs",
     "realworld": "npm run build && node tools/realworld/run.mjs",
     "app:dev": "probot run ./dist/app/probot-app.js",
@@ -35,7 +59,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
-    "@types/node": "^26.0.1",
+    "@types/node": "^26.0.0",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^10.5.0",
     "prettier": "^3.8.4",

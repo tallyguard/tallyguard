@@ -13,7 +13,7 @@ is about a **missing** safeguard rather than a malicious pattern:
 - **Payment charges with no idempotency key** (Stripe), which double-charge on a retry or a
   redelivered webhook. _(Check-then-act races, Rule 2b, are still planned.)_
 
-> **Status: pre-release** (not yet published to npm). What works today: the analyzer and the
+> **Status: published** — run it with `npx tallyguard scan` (no install). What works today: the analyzer and the
 > `tallyguard scan` CLI with two detectors: the rate-limit class (Detector 1) across **Next.js
 > App Router routes, Next.js server actions, NextAuth credential logins, and Express** (ESM +
 > CommonJS), and **Stripe missing-idempotency-key** (Detector 2a). Output is terminal, JSON, and
@@ -60,15 +60,13 @@ the honest recall limits: **[what Tallyguard detects and its limits](docs/guide/
 
 ## Quick start
 
-Until it is published to npm, build and run from source:
-
 ```bash
-npm install
-npm run build
-node dist/cli/index.js scan ./path/to/your-app
+npx tallyguard scan ./path/to/your-app
 ```
 
-Once published, this becomes `npx tallyguard scan ./path/to/your-app`.
+No install, runs locally. For CI, add it as a dev dependency (`npm i -D tallyguard`) and run
+`tallyguard scan`. To hack on Tallyguard itself, build from source instead:
+`npm install && npm run build && node dist/cli/index.js scan <path>`.
 
 ### Example
 

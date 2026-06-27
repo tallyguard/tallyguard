@@ -33,8 +33,10 @@ flagged). A non-Stripe `.create` (e.g. a Prisma model) is never matched.
 `secrets/client-exposed-secret` (Detector 3, CWE-200): a `NEXT_PUBLIC_`-prefixed env var whose name
 is unambiguously a secret (`NEXT_PUBLIC_STRIPE_SECRET_KEY`, `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY`,
 `NEXT_PUBLIC_OPENAI_API_KEY`, ...). Next.js inlines every `NEXT_PUBLIC_` value into the client
-bundle, so the secret ships to every visitor. Legitimately-public values (publishable / anon / site
-keys, analytics IDs, a bare `API_KEY`) are not flagged — precision over recall.
+bundle, so the secret ships to every visitor. The same check covers **Vite**: a `VITE_`-prefixed
+secret read via `import.meta.env` (Vite inlines `VITE_*` into the client bundle too, e.g.
+`VITE_STRIPE_SECRET_KEY`). Legitimately-public values (publishable / anon / site keys, analytics IDs,
+a bare `API_KEY`) are not flagged — precision over recall.
 
 `secrets/client-side-api-call` (Detector 3, CWE-200 / 522): a paid LLM API host (e.g.
 `api.openai.com`, `api.anthropic.com`) called from client-side code — a `public/` asset or a
@@ -88,7 +90,7 @@ The check-then-act race detector (Rule 2b) is **not built yet**.
 Credibility comes from publishing this honestly, not from hiding it.
 
 - **Benchmark** (`npm run benchmark`, hand-labelled vulnerable/safe pairs): **100% detection,
-  0 false positives over 30 safe/clean variants.**
+  0 false positives over 31 safe/clean variants.**
 - **Real repositories** (`npm run realworld`, 18 pinned open-source AI-built repos): every
   expected finding is a hand-verified true positive, **0 false positives**, asserted exactly
   on each pinned commit.
@@ -122,6 +124,10 @@ each is a possible missed detection.
   bcrypt/argon2) reaches no catalogued sink, so it is not flagged.
 - **Inline `"use server"` closures** (server actions defined inside another function) are not
   modeled; top-level `"use server"` files are.
+- **Client-exposed secrets are matched on direct property reads only.** `process.env.NEXT_PUBLIC_*`
+  and `import.meta.env.VITE_*` are checked; element access (`import.meta.env["VITE_X"]`) and
+  destructuring are not. And `secrets/client-side-api-call` covers `public/` assets and `"use client"`
+  files, not yet a Vite SPA's `src/` tree.
 - **Edge / gateway / WAF limits and runtime config** are outside the code and cannot be seen.
   If rate limiting is handled there, set `rateLimit.handledAtEdge: true` in your config or
   suppress with a reason.

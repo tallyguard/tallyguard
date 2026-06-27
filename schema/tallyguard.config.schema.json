@@ -36,6 +36,8 @@
         "rate-limit/unprotected-sensitive-endpoint": { "$ref": "#/$defs/ruleLevel" },
         "money/missing-idempotency-key": { "$ref": "#/$defs/ruleLevel" },
         "money/check-then-act-race": { "$ref": "#/$defs/ruleLevel" },
+        "secrets/client-exposed-secret": { "$ref": "#/$defs/ruleLevel" },
+        "secrets/client-side-api-call": { "$ref": "#/$defs/ruleLevel" },
         "tallyguard/suppression-without-reason": { "$ref": "#/$defs/ruleLevel" }
       }
     },

@@ -12,11 +12,16 @@ is about a **missing** safeguard rather than a malicious pattern:
   logins, and outbound spam.
 - **Payment charges with no idempotency key** (Stripe), which double-charge on a retry or a
   redelivered webhook. _(Check-then-act races, Rule 2b, are still planned.)_
+- **Secrets exposed to the browser** — a `NEXT_PUBLIC_<secret>` env var (Next inlines it into the
+  client bundle), or a paid LLM API called directly from client-side code (the key ships to every
+  visitor, and there is no server-side rate limit).
 
 > **Status: published** — run it with `npx tallyguard scan` (no install). What works today: the analyzer and the
-> `tallyguard scan` CLI with two detectors: the rate-limit class (Detector 1) across **Next.js
-> App Router routes, Next.js server actions, NextAuth credential logins, and Express** (ESM +
-> CommonJS), and **Stripe missing-idempotency-key** (Detector 2a). Output is terminal, JSON, and
+> `tallyguard scan` CLI with **four rules across three classes** — the rate-limit class (Detector 1)
+> across **Next.js App Router routes, Next.js server actions, NextAuth credential logins, and
+> Express** (ESM + CommonJS); **Stripe missing-idempotency-key** (Detector 2a); and **secrets
+> exposed to the browser** (Detector 3) — a `NEXT_PUBLIC_<secret>` env var, and a paid LLM API
+> called from client-side code. Output is terminal, JSON, and
 > SARIF 2.1.0. Validated on a labelled benchmark (100% detection, 0 false positives) and **18
 > pinned real AI-built repositories (every finding a hand-verified true positive, 0 false
 > positives)**. See the [detection & limits guide](docs/guide/detection-and-limits.md) for
@@ -41,6 +46,15 @@ with no recognized rate limiter reachable on it.
 (`paymentIntents`/`charges`/`refunds`/`transfers`/`checkout.sessions` `.create`) with no
 idempotency key in its options, which double-charges on a retry or a redelivered webhook. Pass
 one in the second argument (`{ idempotencyKey }`).
+
+**`secrets/client-exposed-secret`**: a `NEXT_PUBLIC_`-prefixed env var whose name is unambiguously a
+secret (e.g. `NEXT_PUBLIC_STRIPE_SECRET_KEY`, `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY`). Next.js
+inlines every `NEXT_PUBLIC_` value into the client bundle, so the secret ships to every visitor.
+Legitimately-public values (publishable / anon / site keys) are not flagged.
+
+**`secrets/client-side-api-call`**: a paid LLM API host called from client-side code (a `public/`
+asset or a `"use client"` file) — the key must be in the browser and there is no server-side rate
+limit. Calling your own backend (a proxy) is not flagged.
 
 The rate-limit detector in detail:
 

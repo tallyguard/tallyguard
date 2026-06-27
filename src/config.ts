@@ -44,6 +44,8 @@ const RULE_DEFAULT_LEVEL: Readonly<Record<RuleId, RuleLevel>> = {
   "rate-limit/unprotected-sensitive-endpoint": "error",
   "money/missing-idempotency-key": "error",
   "money/check-then-act-race": "warn",
+  "secrets/client-exposed-secret": "error",
+  "secrets/client-side-api-call": "error",
   "tallyguard/suppression-without-reason": "warn",
 };
 

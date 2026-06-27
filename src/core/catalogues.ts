@@ -4,6 +4,10 @@
 // (DESIGN-STANDARD Section 3). The data and its change log live together, below.
 //
 // Change log (newest first):
+//   v5 (2026-06-27): + Detector 3 (secrets/client-exposed-secret) catalogue: secret-name tokens
+//     (SECRET/SERVICE_ROLE/PRIVATE_KEY/PASSWORD), the server-only providers whose key must never be
+//     client-side, and the legit-public allow-list (publishable/anon/site keys). Flags a
+//     NEXT_PUBLIC_ env var whose name is unambiguously a secret (Next inlines it into client JS).
 //   v4 (2026-06-25): + Detector 2a (money/missing-idempotency-key) catalogue: the payment
 //     package (stripe) and the Stripe create-call resources whose calls should carry an
 //     idempotency key (paymentIntents/charges/refunds/transfers/subscriptions/checkout.sessions).
@@ -30,7 +34,7 @@
 import type { SinkCategory } from "./types.js";
 
 /** Bumped whenever the catalogue data below changes; see the change log at the top of file. */
-export const CATALOGUE_VERSION = 4;
+export const CATALOGUE_VERSION = 5;
 
 /** Server-side payment SDK packages whose charge/credit calls should be idempotent (Detector 2a). */
 export const PAYMENT_PACKAGES: ReadonlySet<string> = new Set(["stripe"]);
@@ -194,4 +198,76 @@ export const AI_SDK_COST_FUNCTIONS: ReadonlySet<string> = new Set([
 
 export function sinkCategoryForModule(moduleSpecifier: string): SinkCategory | undefined {
   return SINK_PACKAGES[moduleSpecifier];
+}
+
+// --- secrets/client-exposed-secret (Detector 3) ----------------------------------------------
+// A Next.js `NEXT_PUBLIC_` env var is inlined into the client bundle at build time, so it is
+// readable by every visitor. Naming a SECRET with that prefix exposes it. Precision-first: only
+// a name that is UNAMBIGUOUSLY a secret flags. We do NOT flag a bare `API_KEY` (maps, analytics,
+// and search services legitimately ship a public key), and we allow the known publishable/anon/
+// site keys that are meant to be public. This is the differentiated *exposure* check (the secret
+// reaches the browser), not commodity secret scanning (a credential literal in a file).
+
+/** Tokens that make a NEXT_PUBLIC_ name unambiguously a secret. */
+const SECRET_NAME_TOKENS: readonly RegExp[] = [
+  /SECRET/,
+  /SERVICE_ROLE/,
+  /PRIVATE_KEY/,
+  /PASSWORD|PASSWD/,
+];
+
+/** Server-only providers (the same cost services we catalogue as sinks) whose key/token must never
+ *  be client-side. A NEXT_PUBLIC name mentioning one of these with a key/token suffix is exposed. */
+const SERVER_ONLY_PROVIDERS: readonly string[] = [
+  "OPENAI",
+  "ANTHROPIC",
+  "GROQ",
+  "MISTRAL",
+  "COHERE",
+  "REPLICATE",
+  "HUGGINGFACE",
+  "SENDGRID",
+  "RESEND",
+  "MAILGUN",
+  "POSTMARK",
+  "TWILIO",
+  "VONAGE",
+  "PLIVO",
+];
+
+/** NEXT_PUBLIC names that are LEGITIMATELY public though they look key-ish - never flag. */
+const CLIENT_PUBLIC_ALLOW: readonly string[] = [
+  "PUBLISHABLE",
+  "_ANON",
+  "ANON_KEY",
+  "SITE_KEY",
+  "PUBLIC_KEY",
+  "VAPID",
+  "FIREBASE",
+  "MAPBOX",
+  "GOOGLE_MAPS",
+  "MAPS_API",
+  "RECAPTCHA",
+  "TURNSTILE",
+  "HCAPTCHA",
+  "POSTHOG",
+  "SENTRY",
+  "_GA_",
+  "GTM_",
+  "ALGOLIA_SEARCH",
+  "ALGOLIA_APP",
+  "CLERK_PUBLISHABLE",
+];
+
+/**
+ * True if `name` (a full `NEXT_PUBLIC_*` env var name) is unambiguously a secret that must not be
+ * bundled into the client. Precision-first: legit-public names are excluded first, then only the
+ * clearly-secret tokens (or a server-only provider + a key/token suffix) flag.
+ */
+export function isClientExposedSecretName(name: string): boolean {
+  const n = name.toUpperCase();
+  if (!n.startsWith("NEXT_PUBLIC_")) return false;
+  if (CLIENT_PUBLIC_ALLOW.some((a) => n.includes(a))) return false;
+  if (SECRET_NAME_TOKENS.some((re) => re.test(n))) return true;
+  return SERVER_ONLY_PROVIDERS.some((p) => n.includes(p)) && /(API_?KEY|_KEY|TOKEN)/.test(n);
 }

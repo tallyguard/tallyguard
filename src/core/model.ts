@@ -17,6 +17,7 @@ import {
   AI_SDK_COST_FUNCTIONS,
   PAYMENT_PACKAGES,
   STRIPE_IDEMPOTENT_RESOURCES,
+  isClientExposedSecretName,
 } from "./catalogues.js";
 import type { SinkCategory } from "./types.js";
 
@@ -68,10 +69,26 @@ export interface StripeCreateCall {
   readonly hasIdempotencyKey: boolean;
 }
 
+export interface ExposedSecret {
+  readonly relFile: string;
+  readonly line: number;
+  /** The offending NEXT_PUBLIC_ env var name (e.g. NEXT_PUBLIC_STRIPE_SECRET_KEY). */
+  readonly varName: string;
+}
+
+export interface ClientApiCall {
+  readonly relFile: string;
+  readonly line: number;
+  /** The paid/secret API host called from client-side code, e.g. api.anthropic.com. */
+  readonly host: string;
+}
+
 export interface ProjectModel {
   readonly routes: RouteModel[];
   readonly middleware: MiddlewareModel | undefined;
   readonly stripeCalls: StripeCreateCall[];
+  readonly exposedSecrets: ExposedSecret[];
+  readonly clientSideApiCalls: ClientApiCall[];
 }
 
 export interface BuildOptions {
@@ -230,10 +247,19 @@ function sinksDirectlyIn(scope: Node, bindings: Bindings): SinkCategory[] {
   // the lazy-client recall gap and is precision-safe: it only matches an identifier already
   // catalogued as a sink instance, so it can never add a sink for non-sink code.
   const addIfSinkInstance = (e: Node | undefined): void => {
-    if (e && Node.isIdentifier(e)) {
-      const inst = bindings.sinkInstances.get(e.getText());
-      if (inst) found.add(inst);
+    if (!e || !Node.isIdentifier(e)) return;
+    const inst = bindings.sinkInstances.get(e.getText());
+    if (!inst) return;
+    // Hold the "never match a sink by name alone" invariant: confirm the identifier resolves to the
+    // module-level `new X()` instance, not a same-named parameter/local that shadows it.
+    let defs: Node[];
+    try {
+      defs = e.getDefinitionNodes();
+    } catch {
+      return;
     }
+    if (defs.some((d) => Node.isParameterDeclaration(d) || Node.isBindingElement(d))) return;
+    found.add(inst);
   };
   for (const ret of scope.getDescendantsOfKind(SyntaxKind.ReturnStatement)) {
     addIfSinkInstance(ret.getExpression());
@@ -255,15 +281,70 @@ function sinksDirectlyIn(scope: Node, bindings: Bindings): SinkCategory[] {
   return [...found];
 }
 
-/** True if a call argument is a string/template literal whose static text names an LLM API host. */
-function argMentionsAiHost(arg: Node): boolean {
+/** The LLM API host named by a call argument's static text (string/template literal), if any. */
+function aiHostInArg(arg: Node): string | undefined {
   let text: string | undefined;
   if (Node.isStringLiteral(arg) || Node.isNoSubstitutionTemplateLiteral(arg)) {
     text = arg.getLiteralText();
   } else if (Node.isTemplateExpression(arg)) {
     text = arg.getText(); // includes the literal spans; a host in a literal span still matches
   }
-  return text !== undefined && AI_API_HOSTS.some((h) => text.includes(h));
+  if (text === undefined) return undefined;
+  const t = text;
+  return AI_API_HOSTS.find((h) => t.includes(h));
+}
+
+/** True if a call argument is a string/template literal whose static text names an LLM API host. */
+function argMentionsAiHost(arg: Node): boolean {
+  return aiHostInArg(arg) !== undefined;
+}
+
+/** True if the file opens with a top-level `"use client"` directive (a Next.js client component,
+ * bundled into the browser). */
+function hasUseClientDirective(sf: SourceFile): boolean {
+  const first = sf.getStatements()[0];
+  if (!first || !Node.isExpressionStatement(first)) return false;
+  const expr = first.getExpression();
+  return Node.isStringLiteral(expr) && expr.getLiteralValue() === "use client";
+}
+
+// HTTP-client call shapes, so a non-request call that merely names a host (a log line, a comment,
+// an analytics event) is not mistaken for an API call - a false-positive guard (audit C1).
+const HTTP_CALL_NAMES: ReadonlySet<string> = new Set(["fetch", "$fetch", "axios", "ky", "got"]);
+const HTTP_CLIENT_ROOTS: ReadonlySet<string> = new Set(["axios", "ky", "got", "http", "https"]);
+
+/** True if `call` looks like an HTTP request: `fetch(...)`, `axios.post(...)`, `ky.get(...)`,
+ * `http.request(...)`, etc. - not an arbitrary `.get`/`.post`/`console.log`, to stay precise. */
+function isHttpClientCall(call: CallExpression): boolean {
+  const callee = call.getExpression();
+  if (Node.isIdentifier(callee)) return HTTP_CALL_NAMES.has(callee.getText());
+  if (Node.isPropertyAccessExpression(callee)) {
+    const rootNode = callee.getExpression();
+    return Node.isIdentifier(rootNode) && HTTP_CLIENT_ROOTS.has(rootNode.getText());
+  }
+  return false;
+}
+
+/**
+ * A call to a paid LLM API host from CLIENT-side code - a root `public/` asset served verbatim to
+ * the browser, or a `"use client"` component. Calling a key-protected API from the browser means
+ * the key ships to every visitor (exposure) and there is no server-side rate limit
+ * (denial-of-wallet). Detector 1 only models server routes, Detector 3 only NEXT_PUBLIC_ vars, so
+ * this client-side shape is its own pass (D054). Found dogfooding a real bad app (a browser ->
+ * api.anthropic.com call). Precision guards (audit C1/H1): only an HTTP-client call whose URL
+ * argument names a known host counts, and `public/` is anchored to the project-root static dir.
+ */
+function modelClientSideAiCalls(sf: SourceFile, root: string): ClientApiCall[] {
+  const relFile = toPosix(relative(root, sf.getFilePath()));
+  if (!relFile.startsWith("public/") && !hasUseClientDirective(sf)) return [];
+  const out: ClientApiCall[] = [];
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    if (!isHttpClientCall(call)) continue;
+    const arg0 = call.getArguments()[0];
+    const host = arg0 ? aiHostInArg(arg0) : undefined;
+    if (host) out.push({ relFile, line: call.getStartLineNumber(), host });
+  }
+  return out;
 }
 
 // A function name that strongly implies a rate limiter (e.g. rateLimit, checkEmailRateLimit,
@@ -1194,6 +1275,28 @@ function modelStripeCalls(sf: SourceFile, root: string): StripeCreateCall[] {
   return calls;
 }
 
+/**
+ * Detector 3: a `NEXT_PUBLIC_<secret>` env var read via `process.env`. Next.js inlines every
+ * NEXT_PUBLIC_ value into the client bundle, so a secret-named one is exposed to the browser. We
+ * match `process.env.NEXT_PUBLIC_X` property access where X is unambiguously a secret name
+ * (isClientExposedSecretName), deduped per file by name. (Element access `process.env["X"]` and
+ * destructuring are documented gaps.)
+ */
+function modelClientExposedSecrets(sf: SourceFile, root: string): ExposedSecret[] {
+  const relFile = toPosix(relative(root, sf.getFilePath()));
+  const seen = new Set<string>();
+  const out: ExposedSecret[] = [];
+  for (const pae of sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
+    const name = pae.getName();
+    if (!name.startsWith("NEXT_PUBLIC_")) continue;
+    if (pae.getExpression().getText() !== "process.env") continue;
+    if (seen.has(name) || !isClientExposedSecretName(name)) continue;
+    seen.add(name);
+    out.push({ relFile, line: pae.getStartLineNumber(), varName: name });
+  }
+  return out;
+}
+
 /** Read baseUrl/paths from the target repo's tsconfig so `@/...` alias imports resolve. */
 function readTargetTsPaths(rootDir: string): {
   baseUrl: string | undefined;
@@ -1257,6 +1360,8 @@ export function buildModel(rootDir: string, options: BuildOptions = {}): Project
 
   const routes: RouteModel[] = [];
   const stripeCalls: StripeCreateCall[] = [];
+  const exposedSecrets: ExposedSecret[] = [];
+  const clientSideApiCalls: ClientApiCall[] = [];
   let middleware: MiddlewareModel | undefined;
   for (const sf of sourceFiles) {
     const path = toPosix(sf.getFilePath());
@@ -1282,6 +1387,10 @@ export function buildModel(rootDir: string, options: BuildOptions = {}): Project
     routes.push(...modelNextAuthCredentials(sf, rootDir, maxDepth, cache));
     // Stripe idempotency (Detector 2a): per-call, in any file, when the project uses Stripe.
     if (usesPayment) stripeCalls.push(...modelStripeCalls(sf, rootDir));
+    // Client-exposed secrets (Detector 3): a NEXT_PUBLIC_<secret> env var, in any file.
+    exposedSecrets.push(...modelClientExposedSecrets(sf, rootDir));
+    // Client-side paid-API calls (D054): a fetch to an LLM host from public/ or a "use client" file.
+    clientSideApiCalls.push(...modelClientSideAiCalls(sf, rootDir));
   }
-  return { routes, middleware, stripeCalls };
+  return { routes, middleware, stripeCalls, exposedSecrets, clientSideApiCalls };
 }

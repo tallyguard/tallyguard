@@ -1,7 +1,12 @@
 {
   "version": 1,
   "framework": "next-app-router",
-  "detectors": ["rate-limit/unprotected-sensitive-endpoint", "money/missing-idempotency-key"],
+  "detectors": [
+    "rate-limit/unprotected-sensitive-endpoint",
+    "money/missing-idempotency-key",
+    "secrets/client-exposed-secret",
+    "secrets/client-side-api-call"
+  ],
   "notes": "Labeled ground truth for both detectors. Each variant root is a self-contained mini-app. 'expect' lists the findings the analyzer should report for that variant (empty = clean). Matching is on (rule, file); line is omitted on purpose to stay robust. See README.md.",
   "cases": [
     {
@@ -36,6 +41,40 @@
         {
           "kind": "safe",
           "root": "cases/money/checkout-wrapper/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "secrets-client-exposed",
+      "detector": "secrets/client-exposed-secret",
+      "summary": "A real secret marked NEXT_PUBLIC_ (NEXT_PUBLIC_STRIPE_SECRET_KEY) is inlined into the client bundle and exposed to the browser. The safe variant has only legitimately-public client vars (Stripe publishable, Supabase anon, a public API URL) plus a server-only secret (no NEXT_PUBLIC_) - none must flag (the precision controls).",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/secrets/client-exposed/vulnerable",
+          "expect": [{ "rule": "secrets/client-exposed-secret", "file": "lib/env.ts" }]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/secrets/client-exposed/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "secrets-client-side-api-call",
+      "detector": "secrets/client-side-api-call",
+      "summary": "A paid LLM API (api.anthropic.com) called directly from a public/ (browser-served) script: the key is exposed to every visitor and there is no server-side rate limit. The safe variant calls the app's own backend (/api/chat) which proxies server-side - no AI host in the client, so it must not flag.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/secrets/client-side-api-call/vulnerable",
+          "expect": [{ "rule": "secrets/client-side-api-call", "file": "public/app.js" }]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/secrets/client-side-api-call/safe",
           "expect": []
         }
       ]

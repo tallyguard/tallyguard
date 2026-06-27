@@ -30,6 +30,18 @@ itself the defect); it runs only when the project depends on the `stripe` packag
 unresolvable options argument is treated as present (so only a confidently-absent key is
 flagged). A non-Stripe `.create` (e.g. a Prisma model) is never matched.
 
+`secrets/client-exposed-secret` (Detector 3, CWE-200): a `NEXT_PUBLIC_`-prefixed env var whose name
+is unambiguously a secret (`NEXT_PUBLIC_STRIPE_SECRET_KEY`, `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY`,
+`NEXT_PUBLIC_OPENAI_API_KEY`, ...). Next.js inlines every `NEXT_PUBLIC_` value into the client
+bundle, so the secret ships to every visitor. Legitimately-public values (publishable / anon / site
+keys, analytics IDs, a bare `API_KEY`) are not flagged — precision over recall.
+
+`secrets/client-side-api-call` (Detector 3, CWE-200 / 522): a paid LLM API host (e.g.
+`api.openai.com`, `api.anthropic.com`) called from client-side code — a `public/` asset or a
+`"use client"` file — via an HTTP client (`fetch`/`axios`/`ky`/...). The key must then be in the
+browser and the call has no server-side rate limit. Calling your own backend (a proxy) is not
+flagged.
+
 The check-then-act race detector (Rule 2b) is **not built yet**.
 
 ---
@@ -76,7 +88,7 @@ The check-then-act race detector (Rule 2b) is **not built yet**.
 Credibility comes from publishing this honestly, not from hiding it.
 
 - **Benchmark** (`npm run benchmark`, hand-labelled vulnerable/safe pairs): **100% detection,
-  0 false positives over 28 safe/clean variants.**
+  0 false positives over 30 safe/clean variants.**
 - **Real repositories** (`npm run realworld`, 18 pinned open-source AI-built repos): every
   expected finding is a hand-verified true positive, **0 false positives**, asserted exactly
   on each pinned commit.

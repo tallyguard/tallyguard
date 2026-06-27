@@ -6,6 +6,8 @@ export type RuleId =
   | "rate-limit/unprotected-sensitive-endpoint"
   | "money/missing-idempotency-key"
   | "money/check-then-act-race"
+  | "secrets/client-exposed-secret"
+  | "secrets/client-side-api-call"
   | "tallyguard/suppression-without-reason";
 
 export type Severity = "error" | "warning" | "info";

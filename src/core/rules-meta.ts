@@ -39,6 +39,22 @@ export const RULE_METADATA: Readonly<Record<RuleId, RuleMeta>> = {
     cwe: ["CWE-367", "CWE-362"],
     helpUri: `${HELP_BASE}/money/check-then-act-race`,
   },
+  "secrets/client-exposed-secret": {
+    id: "secrets/client-exposed-secret",
+    name: "ClientExposedSecret",
+    shortDescription:
+      "A secret-named NEXT_PUBLIC_ env var is inlined into the client bundle and exposed to the browser.",
+    cwe: ["CWE-200"],
+    helpUri: `${HELP_BASE}/secrets/client-exposed-secret`,
+  },
+  "secrets/client-side-api-call": {
+    id: "secrets/client-side-api-call",
+    name: "ClientSideSecretApiCall",
+    shortDescription:
+      "A paid/secret API (an LLM host) is called from client-side code, exposing its key and inviting denial-of-wallet.",
+    cwe: ["CWE-200", "CWE-522"],
+    helpUri: `${HELP_BASE}/secrets/client-side-api-call`,
+  },
   "tallyguard/suppression-without-reason": {
     id: "tallyguard/suppression-without-reason",
     name: "SuppressionWithoutReason",

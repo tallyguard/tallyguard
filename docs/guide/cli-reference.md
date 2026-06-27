@@ -3,14 +3,14 @@
 Tallyguard follows the [Command Line Interface Guidelines](https://clig.dev): machine-readable
 output, `NO_COLOR` support, plain output when piped, and stable, documented exit codes.
 
-Until it is published to npm, run it from a build:
+Run it with no install via npx:
 
 ```bash
-npm install && npm run build
-node dist/cli/index.js scan <path>
+npx tallyguard scan <path>
 ```
 
-Once published this is `npx tallyguard scan <path>`.
+To hack on Tallyguard itself, run from a build instead:
+`npm install && npm run build && node dist/cli/index.js scan <path>`.
 
 ---
 
@@ -30,6 +30,7 @@ excluded, and files over ~1.5 MB are skipped. Tallyguard never executes the targ
 | `--config <file>`   | Use a specific `tallyguard.config.json` (default: nearest above the scan root). |
 | `--max-depth <n>`   | Call-graph reachability depth (default 2). Higher = more recall, slower.        |
 | `--show-suppressed` | Also list suppressed findings in the terminal output.                           |
+| `--no-update-check` | Skip the once-a-day check for a newer version (see Update check below).         |
 
 `NO_COLOR` (or a non-TTY / piped stdout) disables ANSI color; severity is never conveyed by
 color alone.
@@ -50,6 +51,34 @@ error app/api/chat/route.ts:7  rate-limit/unprotected-sensitive-endpoint
 
 1 finding(s): 1 error, 0 warning, 0 suppressed
 ```
+
+---
+
+## Update check
+
+When you run `tallyguard scan` in an interactive terminal, the CLI checks the npm registry **at
+most once a day** for a newer version and, if one exists, prints a short upgrade notice to stderr
+(after the report, never mixed into `--json` / `--sarif` output):
+
+```text
+Update available for tallyguard: 0.4.0 -> 0.5.0
+  Run `npm i -D tallyguard@latest` (or `npm i -g tallyguard@latest`) to update.
+```
+
+It is deliberately conservative about privacy — Tallyguard's promise is that your code never
+leaves your machine:
+
+- It sends **no data about you or your code** — it only asks the public registry for the latest
+  `tallyguard` version and reads the number back. This is the only network call the CLI makes.
+- It is **silent in CI, when stdout is piped / non-interactive, and in `--json` / `--sarif` modes**.
+- The result is **cached ~24h**, so the registry is queried at most once a day, and an offline
+  machine or a failed request is ignored silently (it never blocks or slows a scan).
+
+Disable it any of three ways:
+
+- the `--no-update-check` flag,
+- the `NO_UPDATE_NOTIFIER` or `TALLYGUARD_NO_UPDATE_CHECK` environment variable,
+- `"updateCheck": false` in `tallyguard.config.json`.
 
 ---
 

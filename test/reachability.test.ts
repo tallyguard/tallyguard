@@ -13,6 +13,7 @@ const configWithDepth = (maxDepth: number): TallyguardConfig => ({
   rateLimit: { handledAtEdge: false, unknownGuard: "flag" },
   suppressions: { requireReason: true, allowBlanket: true },
   graph: { maxDepth },
+  updateCheck: true,
 });
 
 function project(files: Record<string, string>): string {

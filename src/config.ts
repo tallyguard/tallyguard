@@ -31,6 +31,9 @@ export interface TallyguardConfig {
   readonly graph: {
     readonly maxDepth: number;
   };
+  /** CLI-only: when true (default), `tallyguard scan` checks once a day for a newer version and
+   *  prints an upgrade notice. Ignored by the analyzer core; consumed only by the CLI bin. */
+  readonly updateCheck: boolean;
 }
 
 const DEFAULT_CONFIG: TallyguardConfig = {
@@ -38,6 +41,7 @@ const DEFAULT_CONFIG: TallyguardConfig = {
   rateLimit: { handledAtEdge: false, unknownGuard: "flag" },
   suppressions: { requireReason: true, allowBlanket: true },
   graph: { maxDepth: 2 },
+  updateCheck: true,
 };
 
 const RULE_DEFAULT_LEVEL: Readonly<Record<RuleId, RuleLevel>> = {
@@ -90,6 +94,7 @@ export function loadConfig(targetDir: string, explicitPath?: string): Tallyguard
           ? (asRecord(obj["graph"])["maxDepth"] as number)
           : 2,
     },
+    updateCheck: obj["updateCheck"] !== false,
   };
 }
 

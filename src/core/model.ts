@@ -1276,11 +1276,11 @@ function modelStripeCalls(sf: SourceFile, root: string): StripeCreateCall[] {
 }
 
 /**
- * Detector 3: a `NEXT_PUBLIC_<secret>` env var read via `process.env`. Next.js inlines every
- * NEXT_PUBLIC_ value into the client bundle, so a secret-named one is exposed to the browser. We
- * match `process.env.NEXT_PUBLIC_X` property access where X is unambiguously a secret name
- * (isClientExposedSecretName), deduped per file by name. (Element access `process.env["X"]` and
- * destructuring are documented gaps.)
+ * Detector 3: a client-exposed env var read via its build-time-inlined object - Next.js
+ * `process.env.NEXT_PUBLIC_X` or Vite `import.meta.env.VITE_X`. Both bundlers inline these into the
+ * client bundle, so a secret-named one is exposed to the browser. We match the property access where
+ * X is unambiguously a secret name (isClientExposedSecretName), deduped per file by name. (Element
+ * access `["X"]` and destructuring are documented gaps.)
  */
 function modelClientExposedSecrets(sf: SourceFile, root: string): ExposedSecret[] {
   const relFile = toPosix(relative(root, sf.getFilePath()));
@@ -1288,8 +1288,10 @@ function modelClientExposedSecrets(sf: SourceFile, root: string): ExposedSecret[
   const out: ExposedSecret[] = [];
   for (const pae of sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
     const name = pae.getName();
-    if (!name.startsWith("NEXT_PUBLIC_")) continue;
-    if (pae.getExpression().getText() !== "process.env") continue;
+    const obj = pae.getExpression().getText();
+    const isNextPublic = name.startsWith("NEXT_PUBLIC_") && obj === "process.env";
+    const isVitePublic = name.startsWith("VITE_") && obj === "import.meta.env";
+    if (!isNextPublic && !isVitePublic) continue;
     if (seen.has(name) || !isClientExposedSecretName(name)) continue;
     seen.add(name);
     out.push({ relFile, line: pae.getStartLineNumber(), varName: name });

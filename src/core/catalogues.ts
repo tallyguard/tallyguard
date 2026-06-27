@@ -4,6 +4,10 @@
 // (DESIGN-STANDARD Section 3). The data and its change log live together, below.
 //
 // Change log (newest first):
+//   v6 (2026-06-27): Detector 3 client-exposed-secret extended to Vite. isClientExposedSecretName
+//     now also accepts the `VITE_` prefix (Vite inlines every `import.meta.env.VITE_*` value into
+//     the client bundle, exactly as Next does for NEXT_PUBLIC_), so a Vite `VITE_<secret>` is
+//     flagged. Same secret-name heuristic and legit-public allow-list; precision unchanged (0 FP).
 //   v5 (2026-06-27): + Detector 3 (secrets/client-exposed-secret) catalogue: secret-name tokens
 //     (SECRET/SERVICE_ROLE/PRIVATE_KEY/PASSWORD), the server-only providers whose key must never be
 //     client-side, and the legit-public allow-list (publishable/anon/site keys). Flags a
@@ -34,7 +38,7 @@
 import type { SinkCategory } from "./types.js";
 
 /** Bumped whenever the catalogue data below changes; see the change log at the top of file. */
-export const CATALOGUE_VERSION = 5;
+export const CATALOGUE_VERSION = 6;
 
 /** Server-side payment SDK packages whose charge/credit calls should be idempotent (Detector 2a). */
 export const PAYMENT_PACKAGES: ReadonlySet<string> = new Set(["stripe"]);
@@ -201,12 +205,13 @@ export function sinkCategoryForModule(moduleSpecifier: string): SinkCategory | u
 }
 
 // --- secrets/client-exposed-secret (Detector 3) ----------------------------------------------
-// A Next.js `NEXT_PUBLIC_` env var is inlined into the client bundle at build time, so it is
-// readable by every visitor. Naming a SECRET with that prefix exposes it. Precision-first: only
-// a name that is UNAMBIGUOUSLY a secret flags. We do NOT flag a bare `API_KEY` (maps, analytics,
-// and search services legitimately ship a public key), and we allow the known publishable/anon/
-// site keys that are meant to be public. This is the differentiated *exposure* check (the secret
-// reaches the browser), not commodity secret scanning (a credential literal in a file).
+// A client-exposed env var prefix - Next.js `NEXT_PUBLIC_` (via process.env) or Vite `VITE_` (via
+// import.meta.env) - is inlined into the client bundle at build time, so it is readable by every
+// visitor. Naming a SECRET with that prefix exposes it. Precision-first: only a name that is
+// UNAMBIGUOUSLY a secret flags. We do NOT flag a bare `API_KEY` (maps, analytics, and search
+// services legitimately ship a public key), and we allow the known publishable/anon/site keys that
+// are meant to be public. This is the differentiated *exposure* check (the secret reaches the
+// browser), not commodity secret scanning (a credential literal in a file).
 
 /** Tokens that make a NEXT_PUBLIC_ name unambiguously a secret. */
 const SECRET_NAME_TOKENS: readonly RegExp[] = [
@@ -260,13 +265,14 @@ const CLIENT_PUBLIC_ALLOW: readonly string[] = [
 ];
 
 /**
- * True if `name` (a full `NEXT_PUBLIC_*` env var name) is unambiguously a secret that must not be
- * bundled into the client. Precision-first: legit-public names are excluded first, then only the
- * clearly-secret tokens (or a server-only provider + a key/token suffix) flag.
+ * True if `name` (a full client-exposed env var name - `NEXT_PUBLIC_*` or `VITE_*`) is
+ * unambiguously a secret that must not be bundled into the client. Precision-first: legit-public
+ * names are excluded first, then only the clearly-secret tokens (or a server-only provider + a
+ * key/token suffix) flag.
  */
 export function isClientExposedSecretName(name: string): boolean {
   const n = name.toUpperCase();
-  if (!n.startsWith("NEXT_PUBLIC_")) return false;
+  if (!n.startsWith("NEXT_PUBLIC_") && !n.startsWith("VITE_")) return false;
   if (CLIENT_PUBLIC_ALLOW.some((a) => n.includes(a))) return false;
   if (SECRET_NAME_TOKENS.some((re) => re.test(n))) return true;
   return SERVER_ONLY_PROVIDERS.some((p) => n.includes(p)) && /(API_?KEY|_KEY|TOKEN)/.test(n);

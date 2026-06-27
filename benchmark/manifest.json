@@ -80,6 +80,23 @@
       ]
     },
     {
+      "id": "secrets-vite-exposed",
+      "detector": "secrets/client-exposed-secret",
+      "summary": "A Vite app exposes a real secret to the client bundle via the VITE_ prefix (import.meta.env.VITE_STRIPE_SECRET_KEY); Vite inlines every VITE_ value into the browser bundle, exactly as Next.js does for NEXT_PUBLIC_. The safe variant has only legitimately-public VITE_ vars (publishable key, API base URL) plus a server-only secret read via process.env (no VITE_) - none must flag (the precision controls).",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/secrets/vite-exposed/vulnerable",
+          "expect": [{ "rule": "secrets/client-exposed-secret", "file": "src/config.ts" }]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/secrets/vite-exposed/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
       "id": "llm-openai-unprotected",
       "sink": "ai",
       "summary": "OpenAI call on a public POST route; vulnerable has no limiter, safe wires @upstash/ratelimit in the handler.",

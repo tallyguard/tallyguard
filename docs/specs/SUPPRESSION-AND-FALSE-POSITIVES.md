@@ -116,6 +116,7 @@ completion. The machine-readable contract is
     "requireReason": true,
     "allowBlanket": true,
   },
+  "updateCheck": true,
 }
 ```
 
@@ -127,6 +128,10 @@ completion. The machine-readable contract is
   globally.
 - `rateLimit.unknownGuard`: the boundary policy of Section 5.
 - `suppressions.requireReason` / `allowBlanket`: govern the inline comments of Section 3.
+- `updateCheck`: when `true` (default), the CLI checks the npm registry at most once a day for a
+  newer version and prints an upgrade notice to stderr. CLI-only (the analyzer ignores it); off in
+  CI / non-TTY / `--json` / `--sarif`; sends no data about you or your code. Also disabled by
+  `--no-update-check` or `NO_UPDATE_NOTIFIER` / `TALLYGUARD_NO_UPDATE_CHECK`.
 
 ---
 

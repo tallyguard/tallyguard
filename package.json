@@ -1,6 +1,6 @@
 {
   "name": "tallyguard",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Deterministic static analyzer that flags missing rate limits and unsafe money-handling in web app source code before it ships.",
   "keywords": [
     "static-analysis",

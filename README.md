@@ -96,6 +96,9 @@ error app/api/chat/route.ts:7  rate-limit/unprotected-sensitive-endpoint
 
 - `--json` for a structured report, `--sarif` for SARIF 2.1.0 (uploadable to GitHub code
   scanning). Exit codes: `0` clean, `2` findings, `1` tool error.
+- The CLI makes **one optional network call**: an at-most-daily check to the npm registry for a
+  newer version (interactive terminal only; it sends nothing about you or your code). Disable with
+  `--no-update-check`, `NO_UPDATE_NOTIFIER` / `TALLYGUARD_NO_UPDATE_CHECK`, or `"updateCheck": false`.
 - [CLI reference](docs/guide/cli-reference.md) and [CI integration guide](docs/guide/ci-integration.md).
 
 ## Configuration & suppression

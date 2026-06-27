@@ -15,6 +15,7 @@ const defaultConfig: TallyguardConfig = {
   rateLimit: { handledAtEdge: false, unknownGuard: "flag" },
   suppressions: { requireReason: true, allowBlanket: true },
   graph: { maxDepth: 2 },
+  updateCheck: true,
 };
 
 // `body` is spliced just above the POST handler; use {{INLINE}} on the export line.

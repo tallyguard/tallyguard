@@ -95,6 +95,11 @@
           "description": "When false, a suppression comment that omits the rule ID (suppressing all rules) is rejected."
         }
       }
+    },
+    "updateCheck": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true (default), `tallyguard scan` checks the npm registry at most once a day for a newer version and prints an upgrade notice to stderr. It sends no data about you or your code. Off in CI, non-TTY, and machine-output (--json/--sarif) modes; also disable with --no-update-check or the NO_UPDATE_NOTIFIER / TALLYGUARD_NO_UPDATE_CHECK env vars."
     }
   },
   "$defs": {

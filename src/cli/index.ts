@@ -14,6 +14,12 @@ import { scanProject } from "../scan.js";
 import { formatJson } from "../report/json.js";
 import { formatSarif } from "../report/sarif.js";
 import { formatTerminal } from "../report/terminal.js";
+import {
+  checkForUpdate,
+  defaultCacheFile,
+  fetchLatestVersion,
+  updateCheckSuppressedByEnv,
+} from "./update-check.js";
 import pkg from "../../package.json" with { type: "json" };
 
 export const VERSION: string = pkg.version;
@@ -28,6 +34,9 @@ export interface CliOutcome {
   readonly stdout: string;
   readonly stderr: string;
   readonly exitCode: number;
+  /** Whether the bin should run the (network) update check after printing output. Only the
+   *  interactive terminal path sets this true; machine/CI/non-TTY/disabled paths leave it false. */
+  readonly allowUpdateCheck?: boolean;
 }
 
 const USAGE = `tallyguard - pre-deploy safety checker
@@ -43,6 +52,7 @@ Options:
   --max-depth <n>               Call-graph depth to follow into helpers (default 2)
   --show-suppressed             List suppressed findings (terminal)
   --no-color                    Disable ANSI color
+  --no-update-check             Skip the once-a-day check for a newer version
   -h, --help                    Show help
   --version                     Show version
 
@@ -66,6 +76,7 @@ export function runCli(argv: string[], ctx: CliContext): CliOutcome {
         "max-depth": { type: "string" },
         "show-suppressed": { type: "boolean" },
         "no-color": { type: "boolean" },
+        "no-update-check": { type: "boolean" },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean" },
       },
@@ -123,7 +134,16 @@ export function runCli(argv: string[], ctx: CliContext): CliOutcome {
     }
 
     const hasError = result.findings.some((f) => f.severity === "error");
-    return { stdout, stderr: "", exitCode: hasError ? 2 : 0 };
+    // The update check is an interactive-terminal courtesy only: never in machine output
+    // (--json/--sarif), CI, a non-TTY pipe, or when disabled by flag/env/config. Computed here
+    // (pure) so the gating is unit-testable; the bin does the actual network/cache I/O.
+    const allowUpdateCheck =
+      format === "terminal" &&
+      ctx.stdoutTTY &&
+      config.updateCheck &&
+      values["no-update-check"] !== true &&
+      !updateCheckSuppressedByEnv(ctx.env);
+    return { stdout, stderr: "", exitCode: hasError ? 2 : 0, allowUpdateCheck };
   } catch (e) {
     return { stdout: "", stderr: `tallyguard: ${(e as Error).message}\n`, exitCode: 1 };
   }
@@ -144,7 +164,7 @@ function isMainModule(): boolean {
   }
 }
 
-if (isMainModule()) {
+async function runBin(): Promise<void> {
   const outcome = runCli(process.argv.slice(2), {
     cwd: process.cwd(),
     env: process.env,
@@ -152,5 +172,22 @@ if (isMainModule()) {
   });
   if (outcome.stdout) process.stdout.write(outcome.stdout);
   if (outcome.stderr) process.stderr.write(outcome.stderr);
+  if (outcome.allowUpdateCheck) {
+    try {
+      const notice = await checkForUpdate({
+        currentVersion: VERSION,
+        cacheFile: defaultCacheFile(process.env),
+        now: Date.now(),
+        fetchLatest: () => fetchLatestVersion(),
+      });
+      if (notice) process.stderr.write(notice);
+    } catch {
+      /* the notifier must never break the CLI */
+    }
+  }
   process.exit(outcome.exitCode);
+}
+
+if (isMainModule()) {
+  void runBin();
 }

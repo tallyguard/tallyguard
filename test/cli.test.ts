@@ -118,3 +118,44 @@ describe("CLI config", () => {
     expect(report.suppressed[0]?.suppression.reason).toContain("disabled");
   });
 });
+
+describe("CLI update-check gating (allowUpdateCheck)", () => {
+  const tty = {
+    cwd: process.cwd(),
+    env: {} as Record<string, string | undefined>,
+    stdoutTTY: true,
+  };
+
+  it("allows the check on an interactive terminal scan", () => {
+    expect(runCli(["scan", safe], tty).allowUpdateCheck).toBe(true);
+  });
+
+  it("suppresses for machine output (--json / --sarif)", () => {
+    expect(runCli(["scan", safe, "--json"], tty).allowUpdateCheck).toBeFalsy();
+    expect(runCli(["scan", safe, "--sarif"], tty).allowUpdateCheck).toBeFalsy();
+  });
+
+  it("suppresses for a non-TTY pipe", () => {
+    expect(runCli(["scan", safe], { ...tty, stdoutTTY: false }).allowUpdateCheck).toBeFalsy();
+  });
+
+  it("suppresses with --no-update-check", () => {
+    expect(runCli(["scan", safe, "--no-update-check"], tty).allowUpdateCheck).toBeFalsy();
+  });
+
+  it("suppresses in CI and on an env opt-out", () => {
+    expect(runCli(["scan", safe], { ...tty, env: { CI: "true" } }).allowUpdateCheck).toBeFalsy();
+    expect(
+      runCli(["scan", safe], { ...tty, env: { TALLYGUARD_NO_UPDATE_CHECK: "1" } }).allowUpdateCheck,
+    ).toBeFalsy();
+  });
+
+  it("suppresses when disabled in config", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tg-upd-"));
+    writeFileSync(
+      join(dir, "tallyguard.config.json"),
+      JSON.stringify({ version: 1, updateCheck: false }),
+    );
+    expect(runCli(["scan", dir], tty).allowUpdateCheck).toBeFalsy();
+  });
+});

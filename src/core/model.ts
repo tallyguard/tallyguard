@@ -224,6 +224,24 @@ function sinksDirectlyIn(scope: Node, bindings: Bindings): SinkCategory[] {
     const sink = SINK_PACKAGES[mod];
     if (sink) found.add(sink);
   }
+  // A helper that RETURNS a sink-client singleton (`getResend() { return resend }` or
+  // `() => resend`, where `resend` is a module-level `new Resend()`). A caller that uses the
+  // returned client reaches the sink, so the function is treated as producing it. This closes
+  // the lazy-client recall gap and is precision-safe: it only matches an identifier already
+  // catalogued as a sink instance, so it can never add a sink for non-sink code.
+  const addIfSinkInstance = (e: Node | undefined): void => {
+    if (e && Node.isIdentifier(e)) {
+      const inst = bindings.sinkInstances.get(e.getText());
+      if (inst) found.add(inst);
+    }
+  };
+  for (const ret of scope.getDescendantsOfKind(SyntaxKind.ReturnStatement)) {
+    addIfSinkInstance(ret.getExpression());
+  }
+  if (Node.isArrowFunction(scope)) {
+    const body = scope.getBody();
+    if (!Node.isBlock(body)) addIfSinkInstance(body);
+  }
   // A raw HTTP call (fetch/axios/etc.) to a known LLM inference host, with no SDK. The URL is
   // a literal or a template whose static text names the host (a dynamic-only URL won't match).
   if (!found.has("ai")) {
@@ -486,7 +504,8 @@ function modelMiddleware(
 // A file with a top-level "use server" directive exposes its exported async functions as
 // server actions: client-callable RPC endpoints (POST under the hood), a sensitive surface
 // just like a route handler, and where modern AI-built Next.js apps often put their logic.
-// Inline `"use server"` closures are not modeled yet (a documented recall gap).
+// Inline `"use server"` closures (an action's own directive in a non-directive file) are also
+// modeled, by modelInlineServerActions below (D050).
 
 /** True if the file's first statement is a top-level `"use server"` directive. */
 function hasUseServerDirective(sf: SourceFile): boolean {
@@ -539,6 +558,70 @@ function modelServerActions(
         }
       }
     }
+  }
+  return routes;
+}
+
+/** A function whose own body opens with `"use server"` is an inline server action (a
+ * client-callable POST RPC) even when the file has no top-level directive - the common App
+ * Router pattern `async function f(fd) { "use server"; ... }` inside a component. Closes the
+ * recall gap left by modelServerActions (D050). */
+function bodyHasUseServerDirective(fn: Node): boolean {
+  const body =
+    Node.isFunctionDeclaration(fn) || Node.isFunctionExpression(fn) || Node.isArrowFunction(fn)
+      ? fn.getBody()
+      : undefined;
+  if (!body || !Node.isBlock(body)) return false;
+  const first = body.getStatements()[0];
+  if (!first || !Node.isExpressionStatement(first)) return false;
+  const expr = first.getExpression();
+  return Node.isStringLiteral(expr) && expr.getLiteralValue() === "use server";
+}
+
+/** A readable label for an inline action (its function name, or the variable/property it is
+ * bound to), used as the reported path; the file + line still pinpoint it. */
+function inlineActionName(fn: Node): string {
+  if (Node.isFunctionDeclaration(fn)) {
+    const n = fn.getName();
+    if (n) return n;
+  }
+  const parent = fn.getParent();
+  if (parent && Node.isVariableDeclaration(parent)) {
+    const nm = parent.getNameNode();
+    if (Node.isIdentifier(nm)) return nm.getText();
+  }
+  if (parent && Node.isPropertyAssignment(parent)) return parent.getName();
+  return "(inline server action)";
+}
+
+function modelInlineServerActions(
+  sf: SourceFile,
+  root: string,
+  maxDepth: number,
+  cache: Map<SourceFile, Bindings>,
+): RouteModel[] {
+  // A top-level "use server" file is already fully modeled by modelServerActions.
+  if (hasUseServerDirective(sf)) return [];
+  const relFile = toPosix(relative(root, sf.getFilePath()));
+  const candidates: Node[] = [
+    ...sf.getDescendantsOfKind(SyntaxKind.FunctionDeclaration),
+    ...sf.getDescendantsOfKind(SyntaxKind.FunctionExpression),
+    ...sf.getDescendantsOfKind(SyntaxKind.ArrowFunction),
+  ];
+  const routes: RouteModel[] = [];
+  for (const fn of candidates) {
+    if (!bodyHasUseServerDirective(fn)) continue;
+    const facts = collectReachable(fn, sf, maxDepth, new Set<Node>([fn]), cache);
+    routes.push({
+      relFile,
+      routePath: inlineActionName(fn),
+      method: "POST",
+      line: fn.getStartLineNumber(),
+      sinks: [...facts.sinks],
+      reachableLimiter: facts.hasLimiter,
+      unknownWrapper: undefined,
+      kind: "action",
+    });
   }
   return routes;
 }
@@ -1195,6 +1278,7 @@ export function buildModel(rootDir: string, options: BuildOptions = {}): Project
       ),
     );
     routes.push(...modelServerActions(sf, rootDir, maxDepth, cache));
+    routes.push(...modelInlineServerActions(sf, rootDir, maxDepth, cache));
     routes.push(...modelNextAuthCredentials(sf, rootDir, maxDepth, cache));
     // Stripe idempotency (Detector 2a): per-call, in any file, when the project uses Stripe.
     if (usesPayment) stripeCalls.push(...modelStripeCalls(sf, rootDir));

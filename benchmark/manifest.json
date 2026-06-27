@@ -226,6 +226,28 @@
       ]
     },
     {
+      "id": "cross-file-lazy-sink-client",
+      "sink": "email",
+      "summary": "A sink client built lazily in a helper and used via a local variable: getResend() returns a module-level `new Resend()`, and the route calls client.emails.send() on the result. Requires recognizing a helper that RETURNS a sink client (the lazy-client recall gap). Safe wires @upstash/ratelimit in the handler.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/cross-file-lazy-sink-client/vulnerable",
+          "expect": [
+            {
+              "rule": "rate-limit/unprotected-sensitive-endpoint",
+              "file": "app/api/notify/route.ts"
+            }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/cross-file-lazy-sink-client/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
       "id": "cross-file-sink-in-helper-alias",
       "sink": "ai",
       "summary": "Same as above but the helper is imported via the `@/` path alias; requires reading the project's tsconfig paths to resolve.",
@@ -429,6 +451,29 @@
         {
           "kind": "safe",
           "root": "cases/rate-limit/server-action-llm/safe",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "id": "inline-server-action",
+      "framework": "next-app-router",
+      "sink": "ai",
+      "summary": "An inline server action (its own `\"use server\"` directive inside a component, in a file with NO top-level directive) reaching the LLM sink with no rate limit. Requires modeling inline `\"use server\"` closures, not just top-level-directive files. Safe gates the same action with @upstash/ratelimit inside it.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/rate-limit/inline-server-action/vulnerable",
+          "expect": [
+            {
+              "rule": "rate-limit/unprotected-sensitive-endpoint",
+              "file": "app/dashboard/page.tsx"
+            }
+          ]
+        },
+        {
+          "kind": "safe",
+          "root": "cases/rate-limit/inline-server-action/safe",
           "expect": []
         }
       ]

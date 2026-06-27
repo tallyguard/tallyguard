@@ -12,8 +12,8 @@ input always gives the same output.
 
 | Measure                               | Tallyguard                                  |
 | ------------------------------------- | ------------------------------------------- |
-| Detection on the labelled benchmark   | **100%** (28/28 expected findings reported) |
-| False-positive rate on the benchmark  | **0%** (0 across 28 safe/clean variants)    |
+| Detection on the labelled benchmark   | **100%** (30/30 expected findings reported) |
+| False-positive rate on the benchmark  | **0%** (0 across 30 safe/clean variants)    |
 | Real pinned repositories validated    | **18** (every finding hand-verified)        |
 | False positives across those 18 repos | **0**                                       |
 
@@ -41,7 +41,7 @@ single-file pattern scan cannot do.
 
 ## What the benchmark covers
 
-Two detectors, across the surfaces real AI-built apps actually use:
+Three detector classes (four rules), across the surfaces real AI-built apps actually use:
 
 - **`rate-limit/unprotected-sensitive-endpoint`** on Next.js App Router routes, Next.js server
   actions, NextAuth credential logins, and Express (ESM + CommonJS, cross-file controllers,

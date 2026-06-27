@@ -37,6 +37,8 @@ the SARIF `ruleId` and the token used in suppression comments and config.
 | `rate-limit/unprotected-sensitive-endpoint` | Detector 1 | error            | CWE-799 (primary); CWE-770 / CWE-400 when the harm is resource/wallet exhaustion; CWE-307 when the path is authentication |
 | `money/missing-idempotency-key`             | Rule 2a    | error            | [to confirm] no CWE sourced yet; do not invent one (see DECISIONS D019)                                                   |
 | `money/check-then-act-race`                 | Rule 2b    | warn             | CWE-367 (parent CWE-362)                                                                                                  |
+| `secrets/client-exposed-secret`             | Detector 3 | error            | CWE-200                                                                                                                   |
+| `secrets/client-side-api-call`              | Detector 3 | error            | CWE-200; CWE-522                                                                                                          |
 
 Notes:
 

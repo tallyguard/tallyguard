@@ -12,8 +12,8 @@ input always gives the same output.
 
 | Measure                               | Tallyguard                                  |
 | ------------------------------------- | ------------------------------------------- |
-| Detection on the labelled benchmark   | **100%** (26/26 expected findings reported) |
-| False-positive rate on the benchmark  | **0%** (0 across 26 safe/clean variants)    |
+| Detection on the labelled benchmark   | **100%** (28/28 expected findings reported) |
+| False-positive rate on the benchmark  | **0%** (0 across 28 safe/clean variants)    |
 | Real pinned repositories validated    | **18** (every finding hand-verified)        |
 | False positives across those 18 repos | **0**                                       |
 

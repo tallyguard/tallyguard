@@ -12,8 +12,8 @@ input always gives the same output.
 
 | Measure                               | Tallyguard                                  |
 | ------------------------------------- | ------------------------------------------- |
-| Detection on the labelled benchmark   | **100%** (30/30 expected findings reported) |
-| False-positive rate on the benchmark  | **0%** (0 across 30 safe/clean variants)    |
+| Detection on the labelled benchmark   | **100%** (31/31 expected findings reported) |
+| False-positive rate on the benchmark  | **0%** (0 across 31 safe/clean variants)    |
 | Real pinned repositories validated    | **18** (every finding hand-verified)        |
 | False positives across those 18 repos | **0**                                       |
 
@@ -53,6 +53,9 @@ Three detector classes (four rules), across the surfaces real AI-built apps actu
 - **`money/missing-idempotency-key`**: a Stripe charge/checkout create-call
   (`paymentIntents`/`charges`/`refunds`/`transfers`/`checkout.sessions`) with no idempotency key,
   which double-charges on a retry or a redelivered webhook.
+- **`secrets/client-exposed-secret`**: a client-exposed secret env var - `NEXT_PUBLIC_<secret>`
+  (Next.js) or `VITE_<secret>` (Vite), which the bundler inlines into the browser bundle - plus
+  **`secrets/client-side-api-call`**: a paid LLM API called directly from client-side code.
 
 The labelled corpus pairs each vulnerable case with a matched safe version, and includes
 deliberate false-positive controls (a non-sensitive route; a Prisma `.create` next to a Stripe

@@ -12,9 +12,9 @@ is about a **missing** safeguard rather than a malicious pattern:
   logins, and outbound spam.
 - **Payment charges with no idempotency key** (Stripe), which double-charge on a retry or a
   redelivered webhook. _(Check-then-act races, Rule 2b, are still planned.)_
-- **Secrets exposed to the browser** — a `NEXT_PUBLIC_<secret>` env var (Next inlines it into the
-  client bundle), or a paid LLM API called directly from client-side code (the key ships to every
-  visitor, and there is no server-side rate limit).
+- **Secrets exposed to the browser** — a `NEXT_PUBLIC_<secret>` (Next.js) or `VITE_<secret>` (Vite)
+  env var that the bundler inlines into the client bundle, or a paid LLM API called directly from
+  client-side code (the key ships to every visitor, and there is no server-side rate limit).
 
 > **Status: published** — run it with `npx tallyguard scan` (no install). What works today: the analyzer and the
 > `tallyguard scan` CLI with **four rules across three classes** — the rate-limit class (Detector 1)
@@ -49,8 +49,9 @@ one in the second argument (`{ idempotencyKey }`).
 
 **`secrets/client-exposed-secret`**: a `NEXT_PUBLIC_`-prefixed env var whose name is unambiguously a
 secret (e.g. `NEXT_PUBLIC_STRIPE_SECRET_KEY`, `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY`). Next.js
-inlines every `NEXT_PUBLIC_` value into the client bundle, so the secret ships to every visitor.
-Legitimately-public values (publishable / anon / site keys) are not flagged.
+inlines every `NEXT_PUBLIC_` value into the client bundle, so the secret ships to every visitor. The
+same check covers **Vite** (`VITE_`-prefixed secrets read via `import.meta.env`, e.g.
+`VITE_STRIPE_SECRET_KEY`). Legitimately-public values (publishable / anon / site keys) are not flagged.
 
 **`secrets/client-side-api-call`**: a paid LLM API host called from client-side code (a `public/`
 asset or a `"use client"` file) — the key must be in the browser and there is no server-side rate
@@ -112,7 +113,8 @@ suppress a specific finding, and suppressed findings are always still reported. 
 - Reachability is depth-bounded (default 2); deeper chains or dynamic dispatch can be missed
   (`--max-depth` to go deeper).
 - A custom guard with an unrecognized name can be flagged; suppress it with a reason.
-- Detector 2 (money) is not implemented yet.
+- Detector 2b (money/check-then-act race) is not implemented yet; Detector 2a (missing idempotency
+  key) is.
 
 Full list: [detection and limits](docs/guide/detection-and-limits.md).
 

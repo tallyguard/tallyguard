@@ -671,6 +671,13 @@
         },
         { "kind": "safe", "root": "cases/fastapi/llm-inline/safe", "expect": [] }
       ]
+    },
+    {
+      "id": "fastapi-global-limiter",
+      "analyzer": "python",
+      "detector": "rate-limit/unprotected-sensitive-endpoint",
+      "summary": "FastAPI (Python) precision control (D061): a sensitive endpoint (auth sink, no per-route limiter) under a GLOBAL rate-limit middleware (app.add_middleware(GlobalRateLimitMiddleware)). The global limiter covers every route, so it must NOT be flagged - guards the false-positive class found scanning a real app (Serelo).",
+      "variants": [{ "kind": "safe", "root": "cases/fastapi/global-limiter/safe", "expect": [] }]
     }
   ]
 }

@@ -157,4 +157,24 @@ async def login(request, body):
     });
     expect(await analyzePythonProject(dir)).toHaveLength(0);
   });
+
+  it("does not flag any route when a global rate-limit middleware is applied (D061)", async () => {
+    const dir = project({
+      "app/main.py": `from fastapi import FastAPI, APIRouter
+from passlib.context import CryptContext
+from app.mw import GlobalRateLimitMiddleware
+
+app = FastAPI()
+app.add_middleware(GlobalRateLimitMiddleware)
+
+router = APIRouter()
+pwd = CryptContext(schemes=["bcrypt"])
+
+@router.post("/login")
+async def login(body):
+    return pwd.verify(body.password, "h")
+`,
+    });
+    expect(await analyzePythonProject(dir)).toHaveLength(0);
+  });
 });

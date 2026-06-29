@@ -60,8 +60,10 @@ The check-then-act race detector (Rule 2b) is **not built yet**.
   mounts tied to their mount path.
 - **Python / FastAPI** (rate-limit detector only): `@router` / `@app` route decorators; the
   handler's reachable sink is resolved **across files** (handler -> service method -> helper ->
-  sink). Limiters recognised: slowapi (`@limiter.limit`) and fastapi-limiter
-  (`Depends(RateLimiter(...))`). Parsed with tree-sitter-python in-process (no Python runtime).
+  sink). Limiters recognised: slowapi (`@limiter.limit`), fastapi-limiter
+  (`Depends(RateLimiter(...))`), and a **global** rate-limit middleware (`app.add_middleware(...)`, or
+  slowapi `default_limits`) that covers every route. Parsed with tree-sitter-python in-process (no
+  Python runtime).
 
 ## Sinks recognized (a versioned catalogue)
 
@@ -94,7 +96,7 @@ The check-then-act race detector (Rule 2b) is **not built yet**.
 Credibility comes from publishing this honestly, not from hiding it.
 
 - **Benchmark** (`npm run benchmark`, hand-labelled vulnerable/safe pairs): **100% detection,
-  0 false positives over 33 safe/clean variants.**
+  0 false positives over 34 safe/clean variants.**
 - **Real repositories** (`npm run realworld`, 19 pinned open-source AI-built repos, incl. a
   FastAPI app): every
   expected finding is a hand-verified true positive, **0 false positives**, asserted exactly

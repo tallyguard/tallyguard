@@ -12,6 +12,7 @@ import { type PyNode, getPythonParser } from "./parse.js";
 import { buildProjectIndex } from "./project.js";
 import { modelRoutes } from "./model.js";
 import { detectPyRateLimit } from "./detector.js";
+import { PY_GLOBAL_LIMITER_RE } from "./catalogues.js";
 
 const SKIP_DIRS: ReadonlySet<string> = new Set([
   "venv",
@@ -96,6 +97,10 @@ export async function analyzePythonProject(rootDir: string): Promise<Finding[]> 
   }
   try {
     const index = buildProjectIndex(parsed);
+    // A global rate-limit middleware (or slowapi default_limits) anywhere in the app limits EVERY
+    // route, so presume coverage and emit nothing rather than false-positive on protected routes
+    // (D061). Mirrors the JS no-path `app.use(limiter)` rule.
+    if (index.files.some((f) => PY_GLOBAL_LIMITER_RE.test(f.root.text))) return [];
     const findings: Finding[] = [];
     for (const f of index.files) {
       findings.push(...detectPyRateLimit(modelRoutes(f, index), f.rel));

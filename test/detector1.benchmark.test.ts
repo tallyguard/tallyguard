@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { analyzeProject } from "../src/index.js";
+import { analyzeProject, analyzePythonProject } from "../src/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const benchmarkDir = join(here, "..", "benchmark");
@@ -22,6 +22,7 @@ interface Variant {
 }
 interface Case {
   id: string;
+  analyzer?: string;
   variants: Variant[];
 }
 interface Manifest {
@@ -37,8 +38,10 @@ const norm = (xs: { rule: string; file: string }[]) =>
 describe("Detector 1 (rate-limit) on the benchmark", () => {
   for (const c of manifest.cases) {
     for (const v of c.variants) {
-      it(`${c.id} [${v.kind}]`, () => {
-        const findings = analyzeProject(join(benchmarkDir, v.root));
+      it(`${c.id} [${v.kind}]`, async () => {
+        const root = join(benchmarkDir, v.root);
+        const findings =
+          c.analyzer === "python" ? await analyzePythonProject(root) : analyzeProject(root);
         expect(norm(findings)).toEqual(norm(v.expect ?? []));
       });
     }

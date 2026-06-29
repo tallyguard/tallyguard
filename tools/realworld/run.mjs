@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
-import { analyzeProject } from "../../dist/index.js";
+import { analyzeProject, analyzePythonProject } from "../../dist/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const corpus = JSON.parse(readFileSync(join(here, "corpus.json"), "utf8"));
@@ -50,7 +50,9 @@ for (const entry of corpus.repos) {
     continue;
   }
   try {
-    const got = counts(analyzeProject(dir));
+    const got = counts(
+      entry.analyzer === "python" ? await analyzePythonProject(dir) : analyzeProject(dir),
+    );
     const want = counts(entry.expect);
     const keys = new Set([...got.keys(), ...want.keys()]);
     const missing = []; // fewer than expected (regression / missed true positive)

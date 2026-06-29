@@ -641,6 +641,36 @@
           ]
         }
       ]
+    },
+    {
+      "id": "fastapi-auth-crossfile",
+      "analyzer": "python",
+      "detector": "rate-limit/unprotected-sensitive-endpoint",
+      "summary": "FastAPI (Python): POST /login delegates across files (handler -> AuthService.login -> verify_password -> CryptContext.verify) to an auth sink with no rate limiter. The safe variant adds a slowapi @limiter.limit. Exercises cross-file reachability and the slowapi limiter recognition.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/fastapi/auth-crossfile/vulnerable",
+          "expect": [
+            { "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "app/api/auth.py" }
+          ]
+        },
+        { "kind": "safe", "root": "cases/fastapi/auth-crossfile/safe", "expect": [] }
+      ]
+    },
+    {
+      "id": "fastapi-llm-inline",
+      "analyzer": "python",
+      "detector": "rate-limit/unprotected-sensitive-endpoint",
+      "summary": "FastAPI (Python): POST /chat calls an OpenAI client (LLM sink) with no rate limiter (denial-of-wallet); the safe variant adds slowapi.",
+      "variants": [
+        {
+          "kind": "vulnerable",
+          "root": "cases/fastapi/llm-inline/vulnerable",
+          "expect": [{ "rule": "rate-limit/unprotected-sensitive-endpoint", "file": "main.py" }]
+        },
+        { "kind": "safe", "root": "cases/fastapi/llm-inline/safe", "expect": [] }
+      ]
     }
   ]
 }

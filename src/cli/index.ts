@@ -10,7 +10,7 @@ import { resolve } from "node:path";
 import { existsSync, statSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "../config.js";
-import { scanProject } from "../scan.js";
+import { scanProjectAsync } from "../scan.js";
 import { formatJson } from "../report/json.js";
 import { formatSarif } from "../report/sarif.js";
 import { formatTerminal } from "../report/terminal.js";
@@ -61,7 +61,7 @@ Exit codes: 0 clean, 2 findings, 1 tool error.
 
 type Format = "terminal" | "json" | "sarif";
 
-export function runCli(argv: string[], ctx: CliContext): CliOutcome {
+export async function runCli(argv: string[], ctx: CliContext): Promise<CliOutcome> {
   let parsed;
   try {
     parsed = parseArgs({
@@ -118,7 +118,11 @@ export function runCli(argv: string[], ctx: CliContext): CliOutcome {
 
   try {
     const config = loadConfig(target, values.config);
-    const result = scanProject(target, config, maxDepth !== undefined ? { maxDepth } : undefined);
+    const result = await scanProjectAsync(
+      target,
+      config,
+      maxDepth !== undefined ? { maxDepth } : undefined,
+    );
 
     let stdout: string;
     if (format === "json") {
@@ -165,7 +169,7 @@ function isMainModule(): boolean {
 }
 
 async function runBin(): Promise<void> {
-  const outcome = runCli(process.argv.slice(2), {
+  const outcome = await runCli(process.argv.slice(2), {
     cwd: process.cwd(),
     env: process.env,
     stdoutTTY: Boolean(process.stdout.isTTY),

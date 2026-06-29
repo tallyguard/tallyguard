@@ -9,7 +9,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { analyzeProject } from "../../dist/index.js";
+import { analyzeProject, analyzePythonProject } from "../../dist/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const benchmarkDir = join(here, "..", "..", "benchmark");
@@ -26,7 +26,10 @@ const failures = [];
 
 for (const c of manifest.cases) {
   for (const v of c.variants) {
-    const findings = analyzeProject(join(benchmarkDir, v.root));
+    const root = join(benchmarkDir, v.root);
+    // Python (FastAPI) cases run the async analyzer; JS/TS cases stay on the sync one.
+    const findings =
+      c.analyzer === "python" ? await analyzePythonProject(root) : analyzeProject(root);
     const got = new Set(findings.map(key));
     const want = new Set((v.expect ?? []).map((e) => key({ file: e.file, rule: e.rule })));
 

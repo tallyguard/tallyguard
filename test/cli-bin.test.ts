@@ -6,7 +6,7 @@
 // and is fixed in 0.1.1 by comparing realpaths. We build the bundle and run it through a
 // symlink exactly as npm does, so the regression cannot return silently.
 import { execFileSync, execSync } from "node:child_process";
-import { mkdtempSync, symlinkSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, symlinkSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,5 +45,29 @@ describe("published bin invocation", () => {
 
   it("produces output when run directly (node dist/cli/index.js)", () => {
     expect(run(builtBin, ["--version"]).trim()).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it("scans a FastAPI project through the built bin (Python analyzer + wasm resolution)", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tg-bin-py-"));
+    try {
+      writeFileSync(
+        join(dir, "main.py"),
+        `from fastapi import APIRouter
+from passlib.context import CryptContext
+
+router = APIRouter()
+pwd = CryptContext(schemes=["bcrypt"])
+
+@router.post("/login")
+async def login(body):
+    return pwd.verify(body.password, "h")
+`,
+      );
+      const out = run(builtBin, ["scan", dir]);
+      expect(out).toContain("rate-limit/unprotected-sensitive-endpoint");
+      expect(out).toContain("/login");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

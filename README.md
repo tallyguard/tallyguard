@@ -60,8 +60,9 @@ limit. Calling your own backend (a proxy) is not flagged.
 The rate-limit detector in detail:
 
 - **Surfaces:** Next.js App Router routes, Next.js server actions (`"use server"`), NextAuth /
-  Auth.js Credentials logins, and Express (in-file routes, cross-file controllers and routers,
-  and mounts).
+  Auth.js Credentials logins, Express (in-file routes, cross-file controllers and routers, and
+  mounts), and **Python/FastAPI** (`@router`/`@app` routes, cross-file reachability into services,
+  slowapi + fastapi-limiter).
 - **Sinks:** LLM calls (OpenAI, Anthropic, Google, Mistral, Groq, Cohere, Hugging Face,
   Bedrock; the Vercel AI SDK; LangChain; or a raw `fetch` to a known LLM host), auth
   (bcrypt/argon2), outbound email, and SMS.
@@ -110,9 +111,9 @@ suppress a specific finding, and suppressed findings are always still reported. 
 
 ## Limitations (honest, in brief)
 
-- **Frameworks:** Next.js App Router and Express only. Hono, NestJS, tRPC, SvelteKit, Remix, and
-  the Next.js `pages/api` router are not modeled (they produce no findings, a recall gap, not a
-  false positive).
+- **Frameworks:** Next.js App Router, Express, and **Python/FastAPI** (rate-limit detector). Hono,
+  NestJS, tRPC, SvelteKit, Remix, the Next.js `pages/api` router, and Python Django/DRF are not
+  modeled (they produce no findings, a recall gap, not a false positive).
 - Reachability is depth-bounded (default 2); deeper chains or dynamic dispatch can be missed
   (`--max-depth` to go deeper).
 - A custom guard with an unrecognized name can be flagged; suppress it with a reason.

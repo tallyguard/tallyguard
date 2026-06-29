@@ -58,6 +58,10 @@ The check-then-act race detector (Rule 2b) is **not built yet**.
 - **Express** (ESM and CommonJS): in-file routes, handlers and limiters resolved across files
   (controllers via `exports.x` / `module.exports`, imported routers), and cross-file router
   mounts tied to their mount path.
+- **Python / FastAPI** (rate-limit detector only): `@router` / `@app` route decorators; the
+  handler's reachable sink is resolved **across files** (handler -> service method -> helper ->
+  sink). Limiters recognised: slowapi (`@limiter.limit`) and fastapi-limiter
+  (`Depends(RateLimiter(...))`). Parsed with tree-sitter-python in-process (no Python runtime).
 
 ## Sinks recognized (a versioned catalogue)
 
@@ -90,8 +94,9 @@ The check-then-act race detector (Rule 2b) is **not built yet**.
 Credibility comes from publishing this honestly, not from hiding it.
 
 - **Benchmark** (`npm run benchmark`, hand-labelled vulnerable/safe pairs): **100% detection,
-  0 false positives over 31 safe/clean variants.**
-- **Real repositories** (`npm run realworld`, 18 pinned open-source AI-built repos): every
+  0 false positives over 33 safe/clean variants.**
+- **Real repositories** (`npm run realworld`, 19 pinned open-source AI-built repos, incl. a
+  FastAPI app): every
   expected finding is a hand-verified true positive, **0 false positives**, asserted exactly
   on each pinned commit.
 
@@ -111,9 +116,14 @@ guards against both.
 Static analysis has bounded recall. These are the known gaps; none of them is a false positive,
 each is a possible missed detection.
 
-- **Unmodeled frameworks.** Hono, NestJS (decorator routes), tRPC, SvelteKit, Remix, and the
-  Next.js `pages/api` router are not analyzed and produce no findings. Verified that they stay
-  silent rather than misfire.
+- **Unmodeled frameworks.** Hono, NestJS (decorator routes), tRPC, SvelteKit, Remix, the
+  Next.js `pages/api` router, and Python **Django/DRF** are not analyzed and produce no findings.
+  (Python **FastAPI** is modeled, for the rate-limit detector.) Verified that they stay silent
+  rather than misfire.
+- **Python is rate-limit only.** FastAPI money / idempotency is not built (processors vary -
+  PayFast / Plaid / Stripe), so Detector 2a stays JS/Stripe-only. FastAPI reachability follows
+  handler -> service -> helper calls but skips a call it cannot statically resolve (a miss, not a
+  false positive).
 - **Depth-bounded reachability.** A sink reached only through a chain deeper than the default
   (2 call hops) or through dynamic dispatch can be missed. Raise it with `--max-depth`.
 - **Custom guards with an unrecognized name.** A limiter recognized neither by package nor by a

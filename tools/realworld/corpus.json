@@ -373,6 +373,27 @@
           "rule": "rate-limit/unprotected-sensitive-endpoint"
         }
       ]
+    },
+    {
+      "repo": "Shaisolaris/python-fastapi-saas",
+      "sha": "a6898b6a9c8a301c68a3a24e3da08217c9ae2918",
+      "framework": "fastapi",
+      "analyzer": "python",
+      "note": "FastAPI SaaS. /register and /login (auth.py) and invite_user (users.py) reach an auth sink across files (handler -> AuthService -> verify_password/hash_password -> CryptContext) with no rate limiter. Exercises Python cross-file reachability; the rate-limited routes (none here) would stay clean.",
+      "expect": [
+        {
+          "file": "app/api/v1/endpoints/auth.py",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/v1/endpoints/auth.py",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/api/v1/endpoints/users.py",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        }
+      ]
     }
   ]
 }

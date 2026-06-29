@@ -12,17 +12,17 @@ input always gives the same output.
 
 | Measure                               | Tallyguard                                  |
 | ------------------------------------- | ------------------------------------------- |
-| Detection on the labelled benchmark   | **100%** (31/31 expected findings reported) |
-| False-positive rate on the benchmark  | **0%** (0 across 31 safe/clean variants)    |
-| Real pinned repositories validated    | **18** (every finding hand-verified)        |
-| False positives across those 18 repos | **0**                                       |
+| Detection on the labelled benchmark   | **100%** (33/33 expected findings reported) |
+| False-positive rate on the benchmark  | **0%** (0 across 33 safe/clean variants)    |
+| Real pinned repositories validated    | **19** (every finding hand-verified)        |
+| False positives across those 19 repos | **0**                                       |
 
 Reproduce:
 
 ```bash
 npm install && npm run build
 npm run benchmark    # the labelled corpus: detection + false-positive rate
-npm run realworld    # 18 pinned real repos, exact-match regression (network)
+npm run realworld    # 19 pinned real repos (incl. a FastAPI app), exact-match regression (network)
 ```
 
 ## The gap: what a leading free SAST tool finds here
@@ -56,10 +56,13 @@ Three detector classes (four rules), across the surfaces real AI-built apps actu
 - **`secrets/client-exposed-secret`**: a client-exposed secret env var - `NEXT_PUBLIC_<secret>`
   (Next.js) or `VITE_<secret>` (Vite), which the bundler inlines into the browser bundle - plus
   **`secrets/client-side-api-call`**: a paid LLM API called directly from client-side code.
+- **`rate-limit` on Python/FastAPI**: a FastAPI route (`@router.post`) whose handler reaches an auth
+  or LLM sink **across files** (handler -> service -> helper) with no slowapi / fastapi-limiter
+  limiter; the matched safe variant adds one. A pinned real FastAPI SaaS is in the realworld suite.
 
 The labelled corpus pairs each vulnerable case with a matched safe version, and includes
 deliberate false-positive controls (a non-sensitive route; a Prisma `.create` next to a Stripe
-one; a correctly rate-limited route). The 18 real repositories include personal AI-built apps,
+one; a correctly rate-limited route). The 19 real repositories include personal AI-built apps,
 flagship templates (the official Vercel AI chatbot and LangChain Next.js template), and a
 rate-limited app kept as a clean control that must stay clean.
 

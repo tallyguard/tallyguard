@@ -3,7 +3,7 @@
 // a Markdown summary, and inline annotations. Pure (filesystem + scan only), so it is
 // fully testable without GitHub.
 
-import { scanProject } from "../scan.js";
+import { scanProjectAsync } from "../scan.js";
 import { loadConfig } from "../config.js";
 import type { ScanResult, Severity } from "../core/types.js";
 
@@ -71,9 +71,12 @@ export function reviewToResult(result: ScanResult): ReviewResult {
   return { conclusion, title, summary: buildSummary(result), annotations, result };
 }
 
-/** Scan a checked-out project directory and produce a Checks-ready review. */
-export function reviewDirectory(rootDir: string, configPath?: string): ReviewResult {
+/** Scan a checked-out project directory (JS/TS + Python) and produce a Checks-ready review. Async
+ *  because the Python analyzer's parser loads its grammar asynchronously (once). */
+export async function reviewDirectory(rootDir: string, configPath?: string): Promise<ReviewResult> {
   const config = loadConfig(rootDir, configPath);
-  const result = scanProject(rootDir, config, { unknownGuard: config.rateLimit.unknownGuard });
+  const result = await scanProjectAsync(rootDir, config, {
+    unknownGuard: config.rateLimit.unknownGuard,
+  });
   return reviewToResult(result);
 }

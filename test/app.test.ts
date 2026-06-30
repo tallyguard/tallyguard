@@ -15,8 +15,8 @@ const vulnerable = join(bench, "llm-openai-unprotected/vulnerable");
 const safe = join(bench, "llm-openai-unprotected/safe");
 
 describe("reviewDirectory", () => {
-  it("fails the check with a failure annotation on a vulnerable project", () => {
-    const review = reviewDirectory(vulnerable);
+  it("fails the check with a failure annotation on a vulnerable project", async () => {
+    const review = await reviewDirectory(vulnerable);
     expect(review.conclusion).toBe("failure");
     expect(review.annotations).toHaveLength(1);
     expect(review.annotations[0]).toMatchObject({
@@ -26,8 +26,8 @@ describe("reviewDirectory", () => {
     expect(review.summary).toContain("rate-limit/unprotected-sensitive-endpoint");
   });
 
-  it("passes the check with no annotations on a safe project", () => {
-    const review = reviewDirectory(safe);
+  it("passes the check with no annotations on a safe project", async () => {
+    const review = await reviewDirectory(safe);
     expect(review.conclusion).toBe("success");
     expect(review.annotations).toHaveLength(0);
     expect(review.summary).toContain("0 error");

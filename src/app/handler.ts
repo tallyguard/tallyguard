@@ -35,7 +35,7 @@ export interface ReviewDeps {
   /** Post the result as a GitHub check run. */
   createCheckRun(input: CheckRunInput): Promise<void>;
   /** Override the scan (defaults to reviewDirectory); injectable for testing. */
-  review?: (rootDir: string) => ReviewResult;
+  review?: (rootDir: string) => ReviewResult | Promise<ReviewResult>;
 }
 
 const CHECK_NAME = "Tallyguard";
@@ -60,7 +60,7 @@ export async function reviewPullRequest(
   try {
     let review: ReviewResult;
     try {
-      review = (deps.review ?? reviewDirectory)(dir);
+      review = await (deps.review ?? reviewDirectory)(dir);
     } catch (e) {
       await deps.createCheckRun({
         ...base,

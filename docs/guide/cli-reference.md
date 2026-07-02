@@ -49,8 +49,29 @@ color alone.
 error app/api/chat/route.ts:7  rate-limit/unprotected-sensitive-endpoint
   POST /api/chat reaches a sensitive sink (ai) with no rate limiter reachable on this route.
 
+Coverage: 1 endpoint(s) analyzed (Next.js App Router 1); 4 rule(s) applied
 1 finding(s): 1 error, 0 warning, 0 suppressed
 ```
+
+### Coverage summary
+
+Every report states what the scan actually looked at, so a clean result is auditable rather
+than ambiguous: "0 findings over 12 analyzed endpoints" and "0 findings because nothing here is
+modeled" are different answers.
+
+```text
+Coverage: 12 endpoint(s) analyzed (Next.js App Router 9, Express 3); 4 rule(s) applied
+```
+
+- **Endpoints** counts every analyzed surface: Next.js App Router routes, server actions, and
+  NextAuth credential callbacks; Express route registrations; FastAPI route decorators.
+- **Rules applied** are the built rules minus any set to `"off"` in `tallyguard.config.json`.
+- If the project contains none of the modeled frameworks, the line says so explicitly
+  (`no modeled framework endpoints found (modeled: Next.js App Router, Express, FastAPI)`) —
+  Tallyguard stays silent on frameworks it does not model, and that silence is labeled, never
+  passed off as a clean bill. See [detection & limits](detection-and-limits.md).
+- In `--json` output the same data is the top-level `coverage` object
+  (`{ frameworks, endpoints, rulesApplied }`, additive since 0.7.0).
 
 ---
 

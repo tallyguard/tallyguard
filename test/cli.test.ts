@@ -191,3 +191,52 @@ async def login(body):
     ).toBe(true);
   });
 });
+
+describe("coverage summary (D063)", () => {
+  const fastapiVulnerable = join(benchmarkDir, "cases/fastapi/auth-crossfile/vulnerable");
+  const fastapiGlobalLimiter = join(benchmarkDir, "cases/fastapi/global-limiter/safe");
+
+  it("terminal output states endpoints analyzed and rules applied", async () => {
+    const out = await runCli(["scan", vulnerable], ctx);
+    expect(out.stdout).toContain("Coverage: 1 endpoint(s) analyzed (Next.js App Router 1)");
+    expect(out.stdout).toContain("4 rule(s) applied");
+  });
+
+  it("says so when no modeled framework matched (silence must not read as clean)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "tg-cov-"));
+    writeFileSync(join(dir, "readme.md"), "no code here");
+    const out = await runCli(["scan", dir], ctx);
+    expect(out.stdout).toContain("Coverage: no modeled framework endpoints found");
+    expect(out.stdout).toContain("Next.js App Router, Express, FastAPI");
+  });
+
+  it("counts FastAPI endpoints in --json coverage", async () => {
+    const out = await runCli(["scan", fastapiVulnerable, "--json"], ctx);
+    const report = JSON.parse(out.stdout) as JsonReport;
+    expect(report.coverage?.frameworks).toEqual([
+      { name: "FastAPI", endpoints: expect.any(Number) as number },
+    ]);
+    expect(report.coverage?.endpoints).toBeGreaterThan(0);
+    expect(report.coverage?.rulesApplied).toContain("rate-limit/unprotected-sensitive-endpoint");
+    expect(report.coverage?.rulesApplied).not.toContain("money/check-then-act-race");
+  });
+
+  it("still counts endpoints under a FastAPI global limiter (D061: covered, not unscanned)", async () => {
+    const out = await runCli(["scan", fastapiGlobalLimiter, "--json"], ctx);
+    const report = JSON.parse(out.stdout) as JsonReport;
+    expect(report.summary.findings).toBe(0);
+    expect(report.coverage?.endpoints).toBeGreaterThan(0);
+  });
+
+  it("excludes a config-off rule from rulesApplied", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "tg-covcfg-"));
+    writeFileSync(
+      join(dir, "tallyguard.config.json"),
+      JSON.stringify({ version: 1, rules: { "money/missing-idempotency-key": "off" } }),
+    );
+    const out = await runCli(["scan", dir, "--json"], ctx);
+    const report = JSON.parse(out.stdout) as JsonReport;
+    expect(report.coverage?.rulesApplied).not.toContain("money/missing-idempotency-key");
+    expect(report.coverage?.rulesApplied).toHaveLength(3);
+  });
+});

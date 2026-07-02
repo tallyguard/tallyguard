@@ -5,6 +5,7 @@
 
 import { scanProjectAsync } from "../scan.js";
 import { loadConfig } from "../config.js";
+import { formatCoverageLine } from "../report/terminal.js";
 import type { ScanResult, Severity } from "../core/types.js";
 
 // GitHub's Checks API accepts at most 50 annotations per request.
@@ -52,6 +53,10 @@ function buildSummary(result: ScanResult): string {
       lines.push("");
       lines.push(`Showing the first ${MAX_ANNOTATIONS} of ${result.findings.length} findings.`);
     }
+  }
+  if (result.coverage) {
+    lines.push("");
+    lines.push(formatCoverageLine(result.coverage));
   }
   return lines.join("\n");
 }

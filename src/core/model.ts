@@ -52,6 +52,8 @@ export interface RouteModel {
   /** What kind of surface this is: an HTTP route (default), a Next.js server action, or a
    * NextAuth Credentials sign-in (the `authorize` callback). */
   readonly kind?: "route" | "action" | "credentials";
+  /** Which framework model produced this endpoint (for the coverage summary, D063). */
+  readonly framework: "next" | "express";
 }
 
 export interface MiddlewareModel {
@@ -543,6 +545,7 @@ function modelRoutes(
         sinks: [...facts.sinks],
         reachableLimiter: facts.hasLimiter,
         unknownWrapper: handler.unknownWrapper,
+        framework: "next",
       });
     }
   }
@@ -620,6 +623,7 @@ function modelServerActions(
       reachableLimiter: facts.hasLimiter,
       unknownWrapper: undefined,
       kind: "action",
+      framework: "next",
     });
   };
 
@@ -702,6 +706,7 @@ function modelInlineServerActions(
       reachableLimiter: facts.hasLimiter,
       unknownWrapper: undefined,
       kind: "action",
+      framework: "next",
     });
   }
   return routes;
@@ -747,6 +752,7 @@ function modelNextAuthCredentials(
       reachableLimiter: facts.hasLimiter,
       unknownWrapper: undefined,
       kind: "credentials",
+      framework: "next",
     });
   }
   return routes;
@@ -1217,6 +1223,7 @@ function modelExpress(
       reachableLimiter:
         routeLevelLimiter || inHandlerLimiter || globalCovers(routePath) || presumedCovered,
       unknownWrapper: undefined,
+      framework: "express",
     });
   }
   return routes;

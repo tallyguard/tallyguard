@@ -93,3 +93,49 @@ describe("terminal reporter", () => {
     expect(out).toContain("[");
   });
 });
+
+describe("coverage summary in reports (D063)", () => {
+  const withCoverage: ScanResult = {
+    ...sample,
+    coverage: {
+      frameworks: [
+        { name: "Next.js App Router", endpoints: 3 },
+        { name: "Express", endpoints: 2 },
+      ],
+      endpoints: 5,
+      rulesApplied: [
+        "rate-limit/unprotected-sensitive-endpoint",
+        "money/missing-idempotency-key",
+        "secrets/client-exposed-secret",
+        "secrets/client-side-api-call",
+      ],
+    },
+  };
+
+  it("terminal prints per-framework endpoint counts and the rule count", () => {
+    const text = formatTerminal(withCoverage, { color: false });
+    expect(text).toContain(
+      "Coverage: 5 endpoint(s) analyzed (Next.js App Router 3, Express 2); 4 rule(s) applied",
+    );
+  });
+
+  it("terminal names the modeled frameworks when nothing matched", () => {
+    const empty: ScanResult = {
+      findings: [],
+      suppressed: [],
+      coverage: { frameworks: [], endpoints: 0, rulesApplied: [] },
+    };
+    const text = formatTerminal(empty, { color: false });
+    expect(text).toContain("Coverage: no modeled framework endpoints found");
+    expect(text).toContain("Next.js App Router, Express, FastAPI");
+  });
+
+  it("terminal omits the line when coverage is absent (older callers)", () => {
+    expect(formatTerminal(sample, { color: false })).not.toContain("Coverage:");
+  });
+
+  it("JSON includes coverage when present and omits it when absent", () => {
+    expect(buildJsonReport(withCoverage, "1.2.3").coverage?.endpoints).toBe(5);
+    expect("coverage" in buildJsonReport(sample, "1.2.3")).toBe(false);
+  });
+});

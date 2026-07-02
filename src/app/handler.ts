@@ -41,6 +41,26 @@ export interface ReviewDeps {
 const CHECK_NAME = "Tallyguard";
 
 /**
+ * Bounded first-seen filter for webhook delivery IDs (`X-GitHub-Delivery`). GitHub retries and
+ * manual redeliveries resend the same ID; processing it twice means a duplicate clone + scan.
+ * Returns true the first time an ID is seen, false on a repeat. Insertion-ordered eviction keeps
+ * memory bounded (in-memory is acceptable per ROADMAP 2.3; a restart forgetting IDs only risks a
+ * redundant scan, never a missed one).
+ */
+export function createDeliveryDeduper(limit = 1000): (id: string) => boolean {
+  const seen = new Set<string>();
+  return (id: string): boolean => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    if (seen.size > limit) {
+      const oldest = seen.values().next().value;
+      if (oldest !== undefined) seen.delete(oldest);
+    }
+    return true;
+  };
+}
+
+/**
  * Review a PR head: check out, scan, and post a check run, then clean up. If the scan itself
  * fails, degrade gracefully by posting a neutral "scan failed" check rather than throwing or
  * leaving the PR with no feedback (the plan's reliability requirement). Returns the review,

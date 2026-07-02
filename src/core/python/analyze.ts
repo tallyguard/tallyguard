@@ -55,9 +55,18 @@ function listPyFiles(root: string): string[] {
 
 const toPosix = (p: string): string => p.split(sep).join("/");
 
-/** Analyze a project's Python (FastAPI) sources for Detector 1. Returns [] when no file registers a
- *  route (so a non-FastAPI project pays only a directory walk + cheap reads, never a parse). */
-export async function analyzePythonProject(rootDir: string): Promise<Finding[]> {
+/** Findings plus how many FastAPI routes were analyzed (for the coverage summary, D063). */
+export interface PyAnalysis {
+  readonly findings: Finding[];
+  readonly endpoints: number;
+}
+
+const NO_PY: PyAnalysis = { findings: [], endpoints: 0 };
+
+/** Analyze a project's Python (FastAPI) sources for Detector 1. Returns zero coverage when no
+ *  file registers a route (so a non-FastAPI project pays only a directory walk + cheap reads,
+ *  never a parse). */
+export async function analyzePythonProjectDetailed(rootDir: string): Promise<PyAnalysis> {
   const files = listPyFiles(rootDir).filter((f) => {
     try {
       return statSync(f).size <= MAX_BYTES;
@@ -65,7 +74,7 @@ export async function analyzePythonProject(rootDir: string): Promise<Finding[]> 
       return false;
     }
   });
-  if (files.length === 0) return [];
+  if (files.length === 0) return NO_PY;
 
   // Read first; bail before parsing if no file registers a route. When the project IS a FastAPI app
   // we must index ALL its .py (not just route files): handlers delegate cross-file to service /
@@ -82,7 +91,7 @@ export async function analyzePythonProject(rootDir: string): Promise<Finding[]> 
     anyRoute ||= ROUTE_PREFILTER.test(src);
     sources.push({ rel: toPosix(relative(rootDir, file)), src });
   }
-  if (!anyRoute) return [];
+  if (!anyRoute) return NO_PY;
 
   // Parse every FastAPI-related file (route files AND the service/helper files they reach), index
   // the project, then model routes with cross-file reachability.
@@ -99,14 +108,23 @@ export async function analyzePythonProject(rootDir: string): Promise<Finding[]> 
     const index = buildProjectIndex(parsed);
     // A global rate-limit middleware (or slowapi default_limits) anywhere in the app limits EVERY
     // route, so presume coverage and emit nothing rather than false-positive on protected routes
-    // (D061). Mirrors the JS no-path `app.use(limiter)` rule.
-    if (index.files.some((f) => PY_GLOBAL_LIMITER_RE.test(f.root.text))) return [];
+    // (D061). Mirrors the JS no-path `app.use(limiter)` rule. The routes were still analyzed, so
+    // they still count as coverage (the summary must not read "nothing modeled" on a covered app).
+    const globalLimiter = index.files.some((f) => PY_GLOBAL_LIMITER_RE.test(f.root.text));
     const findings: Finding[] = [];
+    let endpoints = 0;
     for (const f of index.files) {
-      findings.push(...detectPyRateLimit(modelRoutes(f, index), f.rel));
+      const routes = modelRoutes(f, index);
+      endpoints += routes.length;
+      if (!globalLimiter) findings.push(...detectPyRateLimit(routes, f.rel));
     }
-    return findings;
+    return { findings, endpoints };
   } finally {
     for (const t of trees) t.delete();
   }
+}
+
+/** Analyze a project's Python (FastAPI) sources for Detector 1, returning findings only. */
+export async function analyzePythonProject(rootDir: string): Promise<Finding[]> {
+  return (await analyzePythonProjectDetailed(rootDir)).findings;
 }

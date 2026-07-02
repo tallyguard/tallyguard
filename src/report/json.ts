@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // JSON reporter. A versioned, stable integration contract (DESIGN-STANDARD Section 5).
 
-import type { ScanResult } from "../core/types.js";
+import type { CoverageSummary, ScanResult } from "../core/types.js";
 
 export interface JsonReport {
   readonly version: 1;
@@ -12,6 +12,8 @@ export interface JsonReport {
     readonly warnings: number;
     readonly suppressed: number;
   };
+  /** What the scan analyzed (D063). Additive since 0.7.0; absent from older reports. */
+  readonly coverage?: CoverageSummary;
   readonly findings: ScanResult["findings"];
   readonly suppressed: ScanResult["suppressed"];
 }
@@ -28,6 +30,7 @@ export function buildJsonReport(result: ScanResult, toolVersion: string): JsonRe
       warnings,
       suppressed: result.suppressed.length,
     },
+    ...(result.coverage ? { coverage: result.coverage } : {}),
     findings: result.findings,
     suppressed: result.suppressed,
   };

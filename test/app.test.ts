@@ -7,6 +7,7 @@ import { createHmac } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { reviewDirectory, reviewPullRequest, verifyWebhookSignature } from "../src/index.js";
+import { createDeliveryDeduper } from "../src/app/handler.js";
 import type { CheckRunInput, PullRequestRef } from "../src/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -31,6 +32,7 @@ describe("reviewDirectory", () => {
     expect(review.conclusion).toBe("success");
     expect(review.annotations).toHaveLength(0);
     expect(review.summary).toContain("0 error");
+    expect(review.summary).toContain("Coverage:"); // a clean check states what it analyzed (D063)
   });
 });
 
@@ -119,5 +121,23 @@ describe("reviewPullRequest", () => {
     expect(posted?.output.title).toContain("could not complete");
     expect(posted?.output.summary).toContain("ts-morph exploded");
     expect(cleaned).toEqual([vulnerable]);
+  });
+});
+
+describe("createDeliveryDeduper (D064)", () => {
+  it("accepts a first-seen delivery and rejects its redelivery", () => {
+    const isNew = createDeliveryDeduper();
+    expect(isNew("guid-1")).toBe(true);
+    expect(isNew("guid-1")).toBe(false);
+    expect(isNew("guid-2")).toBe(true);
+  });
+
+  it("evicts the oldest ID past the limit (bounded memory)", () => {
+    const isNew = createDeliveryDeduper(2);
+    isNew("a");
+    isNew("b");
+    isNew("c"); // evicts "a"
+    expect(isNew("a")).toBe(true); // forgotten -> treated as new (a redundant scan, never a miss)
+    expect(isNew("c")).toBe(false); // still remembered
   });
 });

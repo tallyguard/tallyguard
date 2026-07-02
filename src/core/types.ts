@@ -51,8 +51,30 @@ export interface SuppressedFinding extends Finding {
   readonly suppression: Suppression;
 }
 
+/** A modeled framework surface that matched in the scanned project. */
+export interface FrameworkCoverage {
+  /** Display name, e.g. "Next.js App Router", "Express", "FastAPI". */
+  readonly name: string;
+  /** Endpoints analyzed on this surface (routes + server actions + credential callbacks). */
+  readonly endpoints: number;
+}
+
+/** What the scan actually looked at (D063). Printed with every report so a clean result is
+ *  auditable: "0 findings over 12 endpoints" and "0 findings, nothing modeled" are different
+ *  answers, and silence on an unmodeled framework must not read as a clean bill. */
+export interface CoverageSummary {
+  /** Framework surfaces that matched, with endpoint counts. Empty = none modeled here. */
+  readonly frameworks: readonly FrameworkCoverage[];
+  /** Total endpoints analyzed across all surfaces. */
+  readonly endpoints: number;
+  /** Rules that ran (the built rules minus any configured "off"). */
+  readonly rulesApplied: readonly RuleId[];
+}
+
 /** The result of a scan after config is applied: active findings plus surfaced suppressions. */
 export interface ScanResult {
   readonly findings: Finding[];
   readonly suppressed: SuppressedFinding[];
+  /** Present on results produced by scanProject/scanProjectAsync; optional for compatibility. */
+  readonly coverage?: CoverageSummary;
 }

@@ -2,7 +2,7 @@
 // Human-readable terminal reporter. Follows clig.dev: color is optional and never the
 // sole signal; honors a `color: false` caller (NO_COLOR / non-TTY / --no-color).
 
-import type { ScanResult, Severity } from "../core/types.js";
+import type { CoverageSummary, ScanResult, Severity } from "../core/types.js";
 
 const ANSI = {
   reset: "[0m",
@@ -20,6 +20,17 @@ export interface TerminalOptions {
 
 function severityLabel(s: Severity): string {
   return s === "error" ? "error" : s === "warning" ? "warning" : "info";
+}
+
+/** One honest line on what the scan looked at (D063), so "no findings" is auditable: it reads
+ *  differently over 12 analyzed endpoints than over a project with no modeled framework. */
+export function formatCoverageLine(coverage: CoverageSummary): string {
+  const rules = `${coverage.rulesApplied.length} rule(s) applied`;
+  if (coverage.frameworks.length === 0) {
+    return `Coverage: no modeled framework endpoints found (modeled: Next.js App Router, Express, FastAPI); ${rules}`;
+  }
+  const per = coverage.frameworks.map((f) => `${f.name} ${f.endpoints}`).join(", ");
+  return `Coverage: ${coverage.endpoints} endpoint(s) analyzed (${per}); ${rules}`;
 }
 
 export function formatTerminal(result: ScanResult, options: TerminalOptions): string {
@@ -49,6 +60,9 @@ export function formatTerminal(result: ScanResult, options: TerminalOptions): st
   const errors = result.findings.filter((f) => f.severity === "error").length;
   const warnings = result.findings.filter((f) => f.severity === "warning").length;
   lines.push("");
+  if (result.coverage) {
+    lines.push(c(ANSI.dim, formatCoverageLine(result.coverage)));
+  }
   lines.push(
     c(
       ANSI.bold,

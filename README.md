@@ -18,11 +18,11 @@ is about a **missing** safeguard rather than a malicious pattern:
 
 > **Status: published** — run it with `npx tallyguard scan` (no install). What works today: the analyzer and the
 > `tallyguard scan` CLI with **four rules across three classes** — the rate-limit class (Detector 1)
-> across **Next.js App Router routes, Next.js server actions, NextAuth credential logins, and
-> Express** (ESM + CommonJS); **Stripe missing-idempotency-key** (Detector 2a); and **secrets
+> across **Next.js App Router routes, Next.js server actions, NextAuth credential logins,
+> Express** (ESM + CommonJS), **and Python/FastAPI**; **Stripe missing-idempotency-key** (Detector 2a); and **secrets
 > exposed to the browser** (Detector 3) — a `NEXT_PUBLIC_<secret>` env var, and a paid LLM API
 > called from client-side code. Output is terminal, JSON, and
-> SARIF 2.1.0. Validated on a labelled benchmark (100% detection, 0 false positives) and **18
+> SARIF 2.1.0. Validated on a labelled benchmark (100% detection, 0 false positives) and **19
 > pinned real AI-built repositories (every finding a hand-verified true positive, 0 false
 > positives)**. See the [detection & limits guide](docs/guide/detection-and-limits.md) for
 > exactly what is and is not detected, and [benchmark/RESULTS.md](benchmark/RESULTS.md) for the

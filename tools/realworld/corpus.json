@@ -104,17 +104,22 @@
       ]
     },
     {
-      "repo": "ahamril2265/nextjs-ai-chatbot",
-      "sha": "154e19305c1a9ea497da09eaa23ee45c855ead21",
-      "framework": "next-app-router",
-      "note": "Vercel-AI-SDK chatbot. The server action generateTitleFromUserMessage (generateText) and the chat route (streamText) are unprotected AI sinks; the resumable-stream GET route is correctly clean (it uses ai utilities createUIMessageStream/JsonToSseTransformStream, not a cost call), which is the false positive the AI_SDK_COST_FUNCTIONS narrowing fixed.",
+      "repo": "kisugez/moderator",
+      "sha": "c7c76cd23dd04f9bc8b241b57272ed35af860712",
+      "framework": "fastapi",
+      "analyzer": "python",
+      "note": "FastAPI moderation service (from the D059 frequency-scan corpus, hand-verified). POST /register (bcrypt.hashpw + OTP email), POST /login (bcrypt.checkpw, brute-forceable), and POST /keys (bcrypt on API-key create) all reach the auth sink with no limiter anywhere in the app (no slowapi/fastapi-limiter/middleware/custom guard). Replaces ahamril2265/nextjs-ai-chatbot, deleted upstream 2026-07 (D066); its ai-utilities clean-control is still covered by vibestack and vercel/ai-chatbot.",
       "expect": [
         {
-          "file": "app/(chat)/actions.ts",
+          "file": "app/routers/admin.py",
           "rule": "rate-limit/unprotected-sensitive-endpoint"
         },
         {
-          "file": "app/(chat)/api/chat/route.ts",
+          "file": "app/routers/auth.py",
+          "rule": "rate-limit/unprotected-sensitive-endpoint"
+        },
+        {
+          "file": "app/routers/auth.py",
           "rule": "rate-limit/unprotected-sensitive-endpoint"
         }
       ]

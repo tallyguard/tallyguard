@@ -60,11 +60,11 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.0.0",
-    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/coverage-v8": "^5.0.2",
     "eslint": "^10.5.0",
     "prettier": "^3.8.4",
     "tsup": "^8.5.1",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.62.0",
     "vitest": "^4.1.9"
   },
@@ -73,7 +73,7 @@
     "probot": "^14.3.2",
     "tree-sitter-python": "^0.25.0",
     "ts-morph": "^28.0.0",
-    "web-tree-sitter": "^0.26.9"
+    "web-tree-sitter": "^0.27.0"
   },
   "overrides": {
     "esbuild": "^0.28.1"
